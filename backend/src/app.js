@@ -1,0 +1,97 @@
+/**
+ * Express Application Configuration
+ * Setup middleware and routes
+ */
+
+import express from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+import { config, corsOptions } from './config/index.js';
+import {
+  loggingMiddleware,
+  generalLimiter,
+  errorHandler,
+  notFound,
+} from './middleware/index.js';
+import routes from './routes/index.js';
+import logger from './utils/logger.js';
+
+/**
+ * Create Express application
+ */
+const app = express();
+
+/**
+ * Security Middleware
+ */
+app.use(helmet());
+
+/**
+ * CORS Middleware
+ */
+app.use(cors(corsOptions));
+
+/**
+ * Body Parser Middleware
+ */
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+/**
+ * Logging Middleware
+ */
+app.use(loggingMiddleware);
+
+/**
+ * Rate Limiting Middleware
+ */
+app.use(generalLimiter);
+
+/**
+ * API Routes
+ */
+app.use(config.apiPrefix, routes);
+
+/**
+ * Root route
+ */
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'TRAINET Backend Server',
+    data: {
+      version: '1.0.0',
+      apiPrefix: config.apiPrefix,
+    },
+  });
+});
+
+/**
+ * 404 Handler
+ */
+app.use(notFound);
+
+/**
+ * Error Handler
+ */
+app.use(errorHandler);
+
+/**
+ * Unhandled Promise Rejection Handler
+ */
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // In production, you might want to exit the process
+  // process.exit(1);
+});
+
+/**
+ * Uncaught Exception Handler
+ */
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  // Exit the process for uncaught exceptions
+  process.exit(1);
+});
+
+export default app;
