@@ -1,13 +1,14 @@
 'use client';
 
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import GradeSubmissionModal from '@/components/trainer/GradeSubmissionModal';
 import apiClient from '@/lib/api/client';
 import { useEffect, useState } from 'react';
 
 interface Assignment {
   id: string;
   title: string;
-  course_id: string;
+  course_offering_id: string;
 }
 
 interface Submission {
@@ -19,6 +20,10 @@ interface Submission {
   submitted_at: string;
   grade: number | null;
   feedback: string | null;
+  ai_score: number | null;
+  ai_feedback: string | null;
+  plagiarism_score: number | null;
+  plagiarism_status: string | null;
   profiles: {
     id: string;
     email: string;
@@ -37,6 +42,14 @@ export default function TrainerSubmissions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'graded'>('all');
+  const [isGradeModalOpen, setIsGradeModalOpen] = useState(false);
+  const [evaluating, setEvaluating] = useState<string | null>(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<{
+    id: string;
+    assignmentTitle: string;
+    studentName: string;
+    attachmentUrl?: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchSubmissions();
@@ -47,16 +60,16 @@ export default function TrainerSubmissions() {
       setLoading(true);
       setError(null);
 
-      // Fetch all courses
-      const coursesResponse: any = await apiClient.get('/courses');
-      const courses = coursesResponse.data?.courses || [];
+      // Fetch trainer's course offerings
+      const offeringsResponse: any = await apiClient.get('/course-offerings/trainer');
+      const offerings = offeringsResponse.data?.offerings || [];
 
-      // Fetch assignments and submissions for all courses
+      // Fetch assignments and submissions for all course offerings
       const allSubmissions: SubmissionWithDetails[] = [];
       
-      for (const course of courses) {
+      for (const offering of offerings) {
         try {
-          const assignmentsResponse: any = await apiClient.get(`/assignments/course/${course.id}`);
+          const assignmentsResponse: any = await apiClient.get(`/assignments/course-offering/${offering.id}`);
           const assignments: Assignment[] = assignmentsResponse.data?.assignments || [];
 
           for (const assignment of assignments) {
@@ -76,7 +89,7 @@ export default function TrainerSubmissions() {
             }
           }
         } catch (err) {
-          console.error(`Error fetching assignments for course ${course.id}:`, err);
+          console.error(`Error fetching assignments for offering ${offering.id}:`, err);
         }
       }
 
@@ -89,6 +102,32 @@ export default function TrainerSubmissions() {
       setError(err.message || 'Failed to load submissions');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGradeClick = (submission: SubmissionWithDetails) => {
+    setSelectedSubmission({
+      id: submission.id,
+      assignmentTitle: submission.assignmentTitle,
+      studentName: submission.studentName,
+      attachmentUrl: submission.attachment_url,
+    });
+    setIsGradeModalOpen(true);
+  };
+
+  const handleGradeSuccess = () => {
+    fetchSubmissions();
+  };
+
+  const handleRunAI = async (submissionId: string) => {
+    try {
+      setEvaluating(submissionId);
+      await apiClient.post(`/submissions/${submissionId}/evaluate`, {});
+      fetchSubmissions();
+    } catch (err: any) {
+      alert(err.message || 'AI evaluation failed');
+    } finally {
+      setEvaluating(null);
     }
   };
 
@@ -227,16 +266,29 @@ export default function TrainerSubmissions() {
                   </div>
 
                   {/* Action Button */}
-                  <div className="ml-4">
+                  <div className="ml-4 flex flex-col space-y-2">
                     {submission.grade === null ? (
-                      <button className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition">
+                      <button 
+                        onClick={() => handleGradeClick(submission)}
+                        className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition text-sm"
+                      >
                         Grade Submission
                       </button>
                     ) : (
-                      <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                      <button 
+                        onClick={() => handleGradeClick(submission)}
+                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm"
+                      >
                         View Details
                       </button>
                     )}
+                    <button
+                      onClick={() => handleRunAI(submission.id)}
+                      disabled={evaluating === submission.id}
+                      className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition text-sm disabled:opacity-50"
+                    >
+                      {evaluating === submission.id ? 'Running...' : '✨ AI Evaluate'}
+                    </button>
                   </div>
                 </div>
 
@@ -245,6 +297,30 @@ export default function TrainerSubmissions() {
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <p className="text-sm font-medium text-gray-700 mb-1">Feedback:</p>
                     <p className="text-sm text-gray-600">{submission.feedback}</p>
+                  </div>
+                )}
+
+                {/* AI Evaluation Results */}
+                {(submission.ai_score !== null || submission.plagiarism_score !== null) && (
+                  <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-3">
+                    {submission.ai_score !== null && (
+                      <div className="flex items-center space-x-2 bg-purple-50 rounded-lg px-3 py-2">
+                        <span className="text-xs text-purple-600 font-medium">✨ AI Score: {submission.ai_score}/100</span>
+                      </div>
+                    )}
+                    {submission.plagiarism_score !== null && (
+                      <div className={`flex items-center space-x-2 rounded-lg px-3 py-2 ${
+                        submission.plagiarism_status === 'clean' ? 'bg-green-50' :
+                        submission.plagiarism_status === 'suspicious' ? 'bg-yellow-50' : 'bg-red-50'
+                      }`}>
+                        <span className={`text-xs font-medium ${
+                          submission.plagiarism_status === 'clean' ? 'text-green-600' :
+                          submission.plagiarism_status === 'suspicious' ? 'text-yellow-600' : 'text-red-600'
+                        }`}>
+                          🔍 Plagiarism: {submission.plagiarism_score}% ({submission.plagiarism_status})
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -264,6 +340,22 @@ export default function TrainerSubmissions() {
           </div>
         )}
       </div>
+
+      {/* Grade Submission Modal */}
+      {selectedSubmission && (
+        <GradeSubmissionModal
+          isOpen={isGradeModalOpen}
+          onClose={() => {
+            setIsGradeModalOpen(false);
+            setSelectedSubmission(null);
+          }}
+          submissionId={selectedSubmission.id}
+          assignmentTitle={selectedSubmission.assignmentTitle}
+          studentName={selectedSubmission.studentName}
+          attachmentUrl={selectedSubmission.attachmentUrl}
+          onSuccess={handleGradeSuccess}
+        />
+      )}
     </DashboardLayout>
   );
 }

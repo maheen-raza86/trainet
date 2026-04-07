@@ -5,6 +5,8 @@
 
 import * as authService from '../services/authService.js';
 import logger from '../utils/logger.js';
+import { supabaseAuthClient, supabaseAdminClient } from '../config/supabaseClient.js';
+import config from '../config/env.js';
 
 /**
  * Sign up a new user
@@ -116,6 +118,116 @@ export const login = async (req, res, next) => {
       success: true,
       message: 'Login successful',
       data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Request password reset via Supabase Auth
+ * POST /api/auth/forgot-password
+ */
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required',
+        error: 'Validation Error',
+      });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid email format',
+        error: 'Validation Error',
+      });
+    }
+
+    const redirectTo = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password`;
+
+    const { error } = await supabaseAuthClient.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+
+    if (error) {
+      logger.error('Supabase resetPasswordForEmail error:', error);
+      // Still return success to avoid email enumeration
+    }
+
+    logger.info(`Password reset email requested for: ${email}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'If an account with that email exists, we have sent a password reset link.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Reset password using Supabase session token
+ * POST /api/auth/reset-password
+ * Body: { accessToken, password }
+ */
+export const resetPassword = async (req, res, next) => {
+  try {
+    const { accessToken, password } = req.body;
+
+    if (!accessToken || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Access token and password are required',
+        error: 'Validation Error',
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters long',
+        error: 'Validation Error',
+      });
+    }
+
+    // Verify the access token and get the user
+    const { data: { user }, error: userError } = await supabaseAuthClient.auth.getUser(accessToken);
+
+    if (userError || !user) {
+      logger.error('Invalid or expired reset token:', userError);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired reset link. Please request a new one.',
+        error: 'Invalid Token',
+      });
+    }
+
+    // Update the password using the admin client
+    const { error: updateError } = await supabaseAdminClient.auth.admin.updateUserById(
+      user.id,
+      { password }
+    );
+
+    if (updateError) {
+      logger.error('Error updating password:', updateError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to reset password. Please try again.',
+        error: 'Internal Server Error',
+      });
+    }
+
+    logger.info(`Password reset successful for user: ${user.email}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password has been reset successfully. You can now login with your new password.',
     });
   } catch (error) {
     next(error);

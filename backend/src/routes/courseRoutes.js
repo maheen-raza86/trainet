@@ -11,7 +11,7 @@ import { authorizeRoles } from '../middleware/roleMiddleware.js';
 const router = express.Router();
 
 /**
- * Get all courses
+ * Get all courses (catalog)
  * GET /api/courses
  * Public route - no authentication required
  */

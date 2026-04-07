@@ -27,8 +27,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedUser = localStorage.getItem('user');
 
     if (storedToken && storedUser) {
+      const parsedUser = JSON.parse(storedUser);
       setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      setUser(parsedUser);
     }
     setIsLoading(false);
   }, []);
@@ -83,6 +84,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('user');
   };
 
+  const setUserWithStorage = (userData: User | null) => {
+    setUser(userData);
+    if (userData) {
+      localStorage.setItem('user', JSON.stringify(userData));
+    } else {
+      localStorage.removeItem('user');
+    }
+  };
+
   const value: AuthContextType = {
     user,
     token,
@@ -91,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     signup,
     logout,
-    setUser,
+    setUser: setUserWithStorage,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

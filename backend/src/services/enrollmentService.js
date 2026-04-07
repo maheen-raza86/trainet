@@ -79,6 +79,34 @@ export const enrollStudent = async (studentId, courseId) => {
  */
 export const getStudentEnrollments = async (studentId) => {
   try {
+    // First try to get course offering enrollments (new system)
+    const { data: offeringEnrollments, error: offeringError } = await supabase
+      .from('enrollments')
+      .select(`
+        *,
+        course_offerings (
+          *,
+          courses (
+            id,
+            title,
+            description
+          ),
+          profiles!course_offerings_trainer_id_fkey (
+            id,
+            first_name,
+            last_name
+          )
+        )
+      `)
+      .eq('student_id', studentId)
+      .not('offering_id', 'is', null)
+      .order('enrolled_at', { ascending: false });
+
+    if (!offeringError && offeringEnrollments && offeringEnrollments.length > 0) {
+      return offeringEnrollments;
+    }
+
+    // Fallback to course enrollments (old system) for backward compatibility
     const { data, error } = await supabase
       .from('enrollments')
       .select(`
@@ -91,6 +119,7 @@ export const getStudentEnrollments = async (studentId) => {
         )
       `)
       .eq('student_id', studentId)
+      .is('offering_id', null)
       .order('enrolled_at', { ascending: false });
 
     if (error) {

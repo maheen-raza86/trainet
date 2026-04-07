@@ -17,10 +17,24 @@ const router = express.Router();
 router.get('/me', verifyToken, userController.getCurrentUser);
 
 /**
+ * Get user profile
+ * GET /api/users/profile
+ * Protected route - requires authentication
+ */
+router.get('/profile', verifyToken, userController.getUserProfile);
+
+/**
  * Update user profile
  * PUT /api/users/profile
  * Protected route - requires authentication
  */
 router.put('/profile', verifyToken, userController.updateProfile);
+
+/**
+ * Change password
+ * PUT /api/users/password
+ * Protected route - requires authentication
+ */
+router.put('/password', verifyToken, userController.changePassword);
 
 export default router;

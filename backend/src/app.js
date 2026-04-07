@@ -6,6 +6,8 @@
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { config, corsOptions } from './config/index.js';
 import {
   loggingMiddleware,
@@ -15,6 +17,9 @@ import {
 } from './middleware/index.js';
 import routes from './routes/index.js';
 import logger from './utils/logger.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Create Express application
@@ -36,6 +41,11 @@ app.use(cors(corsOptions));
  */
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+/**
+ * Static File Serving for Uploads
+ */
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 /**
  * Logging Middleware

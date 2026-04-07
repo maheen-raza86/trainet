@@ -44,6 +44,29 @@ export const getCurrentUser = async (req, res, next) => {
 };
 
 /**
+ * Get user profile
+ * GET /api/users/profile
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
+ * @param {Function} next - Next middleware
+ */
+export const getUserProfile = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    const profile = await userService.getUserProfile(userId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile retrieved successfully',
+      data: profile,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Update user profile
  * PUT /api/users/profile
  * @param {Object} req - Express request
@@ -53,7 +76,7 @@ export const getCurrentUser = async (req, res, next) => {
 export const updateProfile = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { firstName, lastName, bio, avatar_url } = req.body;
+    const { firstName, lastName, bio, skills, portfolioUrl, avatar_url } = req.body;
 
     // Prevent role modification through profile update
     if (req.body.role) {
@@ -68,6 +91,8 @@ export const updateProfile = async (req, res, next) => {
       firstName,
       lastName,
       bio,
+      skills,
+      portfolioUrl,
       avatar_url,
     });
 
@@ -75,6 +100,38 @@ export const updateProfile = async (req, res, next) => {
       success: true,
       message: 'Profile updated successfully',
       data: updatedProfile,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Change password
+ * PUT /api/users/password
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
+ * @param {Function} next - Next middleware
+ */
+export const changePassword = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required',
+        error: 'Validation Error',
+      });
+    }
+
+    await userService.changePassword(userId, currentPassword, newPassword);
+
+    res.status(200).json({
+      success: true,
+      message: 'Password changed successfully',
+      data: null,
     });
   } catch (error) {
     next(error);

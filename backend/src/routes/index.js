@@ -7,10 +7,12 @@ import express from 'express';
 import authRoutes from './authRoutes.js';
 import userRoutes from './userRoutes.js';
 import courseRoutes from './courseRoutes.js';
+import courseOfferingRoutes from './courseOfferingRoutes.js';
 import assignmentRoutes from './assignmentRoutes.js';
 import submissionRoutes from './submissionRoutes.js';
 import enrollmentRoutes from './enrollmentRoutes.js';
 import enrollQRRoutes from './enrollQRRoutes.js';
+import materialRoutes from './materialRoutes.js';
 
 const router = express.Router();
 
@@ -97,6 +99,12 @@ router.use('/users', userRoutes);
 router.use('/courses', courseRoutes);
 
 /**
+ * Course Offering routes
+ * /api/course-offerings/*
+ */
+router.use('/course-offerings', courseOfferingRoutes);
+
+/**
  * Enrollment routes
  * /api/enrollments/*
  */
@@ -119,5 +127,11 @@ router.use('/assignments', assignmentRoutes);
  * /api/submissions/*
  */
 router.use('/submissions', submissionRoutes);
+
+/**
+ * Course Material routes
+ * /api/materials/*
+ */
+router.use('/materials', materialRoutes);
 
 export default router;

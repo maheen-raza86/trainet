@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,9 +13,10 @@ interface LoginFormData {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, user, isAuthenticated, logout } = useAuth();
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
 
   const {
     register,
@@ -23,23 +24,59 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginFormData>();
 
+  // Only redirect after successful login, not on page load
+  useEffect(() => {
+    if (shouldRedirect && user && user.role) {
+      console.log('Login: Redirecting after successful login to:', user.role);
+      router.push(`/${user.role.toLowerCase()}/dashboard`);
+    }
+  }, [shouldRedirect, user, router]);
+
+  // If user is already authenticated, show them they're logged in
+  if (isAuthenticated && !shouldRedirect) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-2xl p-8 text-center">
+            <div className="w-16 h-16 bg-gradient-to-r from-purple-400 to-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <span className="text-white text-2xl font-bold">T</span>
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-4">Already Logged In</h2>
+            <p className="text-white/80 mb-6">You are already logged in as {user?.firstName} {user?.lastName}.</p>
+            <div className="space-y-3">
+              <button
+                onClick={() => router.push(`/${user?.role?.toLowerCase()}/dashboard`)}
+                className="w-full py-3 px-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl hover:from-purple-600 hover:to-blue-600 transition-all duration-200 hover:shadow-lg font-medium"
+              >
+                Go to Dashboard
+              </button>
+              <button
+                onClick={() => {
+                  logout();
+                  window.location.reload();
+                }}
+                className="w-full py-3 px-4 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-xl hover:bg-white/20 transition-all duration-200 font-medium"
+              >
+                Login as Different User
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const onSubmit = async (data: LoginFormData) => {
     try {
       setError('');
       setIsLoading(true);
       
+      console.log('Login: Starting login process');
       await login(data);
-      
-      // Get user from localStorage to determine role
-      const userStr = localStorage.getItem('user');
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        const role = user.role.toLowerCase();
-        
-        // Redirect based on role
-        router.push(`/${role}/dashboard`);
-      }
+      console.log('Login: Login completed, setting redirect flag');
+      setShouldRedirect(true); // This will trigger the redirect useEffect
     } catch (err: any) {
+      console.error('Login: Login failed:', err);
       setError(err.response?.data?.message || err.message || 'Login failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -47,22 +84,25 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">TRAINET</h1>
-          <p className="text-gray-600">Welcome back! Please login to your account.</p>
+          <div className="w-20 h-20 bg-gradient-to-r from-purple-400 to-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-2xl">
+            <span className="text-white text-3xl font-bold">T</span>
+          </div>
+          <h1 className="text-4xl font-bold text-white mb-2">TRAINET</h1>
+          <p className="text-white/80">Welcome back! Please login to your account.</p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Login</h2>
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-2xl p-8">
+          <h2 className="text-2xl font-bold text-white mb-6">Login</h2>
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">{error}</p>
+            <div className="mb-4 p-4 bg-red-500/20 backdrop-blur-sm border border-red-400/30 rounded-xl">
+              <p className="text-sm text-red-200">{error}</p>
             </div>
           )}
 
@@ -70,7 +110,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-2">
                 Email Address
               </label>
               <input
@@ -83,19 +123,19 @@ export default function LoginPage() {
                     message: 'Invalid email address',
                   },
                 })}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                  errors.email ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/60 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition ${
+                  errors.email ? 'border-red-400' : 'border-white/20'
                 }`}
                 placeholder="you@example.com"
               />
               {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                <p className="mt-1 text-sm text-red-300">{errors.email.message}</p>
               )}
             </div>
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-white/90 mb-2">
                 Password
               </label>
               <input
@@ -108,13 +148,13 @@ export default function LoginPage() {
                     message: 'Password must be at least 8 characters',
                   },
                 })}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                  errors.password ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/60 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition ${
+                  errors.password ? 'border-red-400' : 'border-white/20'
                 }`}
                 placeholder="••••••••"
               />
               {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                <p className="mt-1 text-sm text-red-300">{errors.password.message}</p>
               )}
             </div>
 
@@ -124,15 +164,15 @@ export default function LoginPage() {
                 <input
                   id="remember"
                   type="checkbox"
-                  className="h-4 w-4 text-primary-500 focus:ring-primary-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-purple-500 focus:ring-purple-400 border-white/20 rounded bg-white/10"
                 />
-                <label htmlFor="remember" className="ml-2 block text-sm text-gray-700">
+                <label htmlFor="remember" className="ml-2 block text-sm text-white/80">
                   Remember me
                 </label>
               </div>
               <Link
                 href="/forgot-password"
-                className="text-sm font-medium text-primary-500 hover:text-primary-600"
+                className="text-sm font-medium text-purple-300 hover:text-purple-200 transition-colors"
               >
                 Forgot password?
               </Link>
@@ -142,10 +182,10 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-full py-3 px-4 rounded-lg font-medium text-white transition ${
+              className={`w-full py-3 px-4 rounded-xl font-medium text-white transition-all duration-200 ${
                 isLoading
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-primary-500 hover:bg-primary-600 active:bg-primary-700'
+                  ? 'bg-gray-500/50 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 hover:shadow-lg hover:transform hover:-translate-y-0.5'
               }`}
             >
               {isLoading ? (
@@ -181,10 +221,10 @@ export default function LoginPage() {
           {/* Divider */}
           <div className="mt-6 relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
+              <div className="w-full border-t border-white/20"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Don't have an account?</span>
+              <span className="px-2 bg-transparent text-white/60">Don't have an account?</span>
             </div>
           </div>
 
@@ -192,7 +232,7 @@ export default function LoginPage() {
           <div className="mt-6">
             <Link
               href="/signup"
-              className="w-full flex justify-center py-3 px-4 border border-primary-500 rounded-lg font-medium text-primary-500 hover:bg-primary-50 transition"
+              className="w-full flex justify-center py-3 px-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl font-medium text-white hover:bg-white/20 transition-all duration-200"
             >
               Create an account
             </Link>
@@ -201,7 +241,7 @@ export default function LoginPage() {
 
         {/* Back to Home */}
         <div className="mt-6 text-center">
-          <Link href="/" className="text-sm text-gray-600 hover:text-gray-900">
+          <Link href="/" className="text-sm text-white/60 hover:text-white/90 transition-colors">
             ← Back to home
           </Link>
         </div>

@@ -8,10 +8,10 @@ import config from '../config/env.js';
 
 /**
  * General rate limiter
- * Disabled in test environment
+ * Disabled in test and development environments
  */
 export const generalLimiter =
-  config.nodeEnv === 'test'
+  config.nodeEnv === 'test' || config.nodeEnv === 'development'
     ? (req, res, next) => next()
     : rateLimit({
         windowMs: config.rateLimit.windowMs,
@@ -27,10 +27,10 @@ export const generalLimiter =
 
 /**
  * Strict rate limiter for authentication routes
- * Disabled in test environment
+ * Disabled in test and development environments
  */
 export const authLimiter =
-  config.nodeEnv === 'test'
+  config.nodeEnv === 'test' || config.nodeEnv === 'development'
     ? (req, res, next) => next()
     : rateLimit({
         windowMs: 15 * 60 * 1000, // 15 minutes

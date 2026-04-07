@@ -4,8 +4,48 @@
  */
 
 import { supabaseAdminClient } from '../config/supabaseClient.js';
+import supabase from '../config/supabaseClient.js';
 import logger from '../utils/logger.js';
 import { BadRequestError, NotFoundError, UnauthorizedError } from '../utils/errors.js';
+
+/**
+ * Get user profile
+ * @param {string} userId - User ID
+ * @returns {Promise<Object>} User profile
+ */
+export const getUserProfile = async (userId) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) {
+      throw new NotFoundError('User profile not found');
+    }
+
+    return {
+      id: data.id,
+      email: data.email,
+      firstName: data.first_name,
+      lastName: data.last_name,
+      role: data.role,
+      bio: data.bio,
+      skills: data.skills,
+      portfolioUrl: data.portfolio_url,
+      avatar_url: data.avatar_url,
+      emailVerified: data.email_verified,
+      createdAt: data.created_at,
+    };
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      throw error;
+    }
+    logger.error('Error fetching user profile:', error);
+    throw new BadRequestError('Failed to fetch user profile');
+  }
+};
 
 /**
  * Update user profile
@@ -14,12 +54,14 @@ import { BadRequestError, NotFoundError, UnauthorizedError } from '../utils/erro
  * @param {string} [profileData.firstName] - First name
  * @param {string} [profileData.lastName] - Last name
  * @param {string} [profileData.bio] - User bio
+ * @param {string} [profileData.skills] - User skills
+ * @param {string} [profileData.portfolioUrl] - Portfolio URL
  * @param {string} [profileData.avatar_url] - Avatar URL
  * @returns {Promise<Object>} Updated profile
  */
 export const updateUserProfile = async (userId, profileData) => {
   try {
-    const { firstName, lastName, bio, avatar_url } = profileData;
+    const { firstName, lastName, bio, skills, portfolioUrl, avatar_url } = profileData;
 
     // Build update object with only provided fields
     const updateData = {};
@@ -46,6 +88,14 @@ export const updateUserProfile = async (userId, profileData) => {
         throw new BadRequestError('Bio must not exceed 500 characters');
       }
       updateData.bio = bio;
+    }
+
+    if (skills !== undefined) {
+      updateData.skills = skills;
+    }
+
+    if (portfolioUrl !== undefined) {
+      updateData.portfolio_url = portfolioUrl;
     }
     
     if (avatar_url !== undefined) {
@@ -83,6 +133,8 @@ export const updateUserProfile = async (userId, profileData) => {
       lastName: data.last_name,
       role: data.role,
       bio: data.bio,
+      skills: data.skills,
+      portfolioUrl: data.portfolio_url,
       avatar_url: data.avatar_url,
     };
   } catch (error) {
@@ -197,5 +249,65 @@ export const validateQREnrollmentToken = async (token) => {
     }
     logger.error('Unexpected error validating QR token:', error);
     throw new BadRequestError('Failed to validate QR enrollment token');
+  }
+};
+
+
+/**
+ * Change user password
+ * @param {string} userId - User ID
+ * @param {string} currentPassword - Current password
+ * @param {string} newPassword - New password
+ * @returns {Promise<void>}
+ */
+export const changePassword = async (userId, currentPassword, newPassword) => {
+  try {
+    // Validate new password
+    if (newPassword.length < 8) {
+      throw new BadRequestError('New password must be at least 8 characters');
+    }
+
+    // Get user's email from profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', userId)
+      .single();
+
+    if (profileError || !profile) {
+      throw new NotFoundError('User not found');
+    }
+
+    // Verify current password by attempting to sign in
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: profile.email,
+      password: currentPassword,
+    });
+
+    if (signInError) {
+      throw new UnauthorizedError('Current password is incorrect');
+    }
+
+    // Update password using Supabase Auth
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (updateError) {
+      logger.error('Error updating password:', updateError);
+      throw new BadRequestError('Failed to update password');
+    }
+
+    logger.info(`Password changed for user: ${userId}`);
+  } catch (error) {
+    if (
+      error instanceof BadRequestError ||
+      error instanceof NotFoundError ||
+      error instanceof UnauthorizedError
+    ) {
+      throw error;
+    }
+    logger.error('Unexpected error changing password:', error);
+    throw new BadRequestError('Failed to change password');
   }
 };

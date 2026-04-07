@@ -8,6 +8,43 @@ import logger from '../utils/logger.js';
 import { BadRequestError, NotFoundError, ConflictError } from '../utils/errors.js';
 
 /**
+ * Create course
+ * @param {Object} courseData - Course data (title, description)
+ * @returns {Promise<Object>} Created course
+ */
+export const createCourse = async (courseData) => {
+  try {
+    const { title, description } = courseData;
+
+    const { data, error } = await supabase
+      .from('courses')
+      .insert([
+        {
+          title,
+          description,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      logger.error('Error creating course:', error);
+      throw new BadRequestError('Failed to create course');
+    }
+
+    logger.info(`Course created: ${data.id}`);
+
+    return data;
+  } catch (error) {
+    if (error instanceof BadRequestError) {
+      throw error;
+    }
+    logger.error('Unexpected error creating course:', error);
+    throw new BadRequestError('Failed to create course');
+  }
+};
+
+/**
  * Get all courses
  * @returns {Promise<Array>} List of all courses
  */

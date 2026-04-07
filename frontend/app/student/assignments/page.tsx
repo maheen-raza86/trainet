@@ -1,6 +1,7 @@
 'use client';
 
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import SubmissionModal from '@/components/student/SubmissionModal';
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/api/client';
 
@@ -9,7 +10,7 @@ interface Assignment {
   title: string;
   description: string;
   due_date: string;
-  course_id: string;
+  course_offering_id: string;
   created_at: string;
 }
 
@@ -18,21 +19,29 @@ interface Submission {
   assignment_id: string;
   status: string;
   grade: number | null;
+  feedback: string | null;
+  ai_score: number | null;
+  ai_feedback: string | null;
+  plagiarism_score: number | null;
+  plagiarism_status: string | null;
   submitted_at: string;
 }
 
 interface Enrollment {
-  course_id: string;
-  courses: {
+  offering_id: string;
+  course_offerings: {
     id: string;
-    title: string;
+    courses: {
+      title: string;
+    };
   };
 }
 
 interface AssignmentWithStatus extends Assignment {
-  courseName: string;
+  offeringName: string;
   status: 'pending' | 'submitted' | 'graded';
   score: number | null;
+  submission: Submission | null;
 }
 
 export default function StudentAssignments() {
@@ -40,6 +49,9 @@ export default function StudentAssignments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'pending' | 'submitted' | 'graded'>('all');
+  const [isSubmissionModalOpen, setIsSubmissionModalOpen] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+  const [viewFeedback, setViewFeedback] = useState<Submission | null>(null);
 
   useEffect(() => {
     fetchAssignments();
@@ -51,7 +63,7 @@ export default function StudentAssignments() {
       setError(null);
 
       // Fetch enrolled courses
-      const enrollmentsData: any = await apiClient.get('/courses/my-courses');
+      const enrollmentsData: any = await apiClient.get('/enrollments/my');
       const enrollments: Enrollment[] = enrollmentsData.data?.enrollments || [];
 
       if (enrollments.length === 0) {
@@ -64,16 +76,16 @@ export default function StudentAssignments() {
       const submissionsData: any = await apiClient.get('/submissions/my');
       const submissions: Submission[] = submissionsData.data?.submissions || [];
 
-      // Fetch assignments for each enrolled course
+      // Fetch assignments for each enrolled course offering
       const allAssignments: AssignmentWithStatus[] = [];
       
       for (const enrollment of enrollments) {
         try {
-          const assignmentsData: any = await apiClient.get(`/assignments/course/${enrollment.course_id}`);
-          const courseAssignments: Assignment[] = assignmentsData.data?.assignments || [];
+          const assignmentsData: any = await apiClient.get(`/assignments/course-offering/${enrollment.offering_id}`);
+          const offeringAssignments: Assignment[] = assignmentsData.data?.assignments || [];
 
           // Map assignments with status
-          courseAssignments.forEach((assignment) => {
+          offeringAssignments.forEach((assignment) => {
             const submission = submissions.find(s => s.assignment_id === assignment.id);
             
             let status: 'pending' | 'submitted' | 'graded' = 'pending';
@@ -90,26 +102,45 @@ export default function StudentAssignments() {
 
             allAssignments.push({
               ...assignment,
-              courseName: enrollment.courses.title,
+              offeringName: enrollment.course_offerings.courses.title,
               status,
               score,
+              submission: submission || null,
             });
           });
         } catch (err) {
-          console.error(`Error fetching assignments for course ${enrollment.course_id}:`, err);
+          console.error(`Error fetching assignments for offering ${enrollment.offering_id}:`, err);
         }
       }
 
       // Sort by due date (earliest first)
       allAssignments.sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
 
-      setAssignments(allAssignments);
+      // Hide assignments past deadline that haven't been submitted
+      const now = new Date();
+      const visibleAssignments = allAssignments.filter(a => {
+        if (a.status !== 'pending') return true; // always show submitted/graded
+        return new Date(a.due_date) >= now; // only show pending if not past deadline
+      });
+
+      setAssignments(visibleAssignments);
     } catch (err: any) {
       console.error('Error fetching assignments:', err);
       setError(err.message || 'Failed to load assignments');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmitClick = (assignment: Assignment) => {
+    console.log('Submit button clicked for assignment:', assignment.id);
+    setSelectedAssignment(assignment);
+    setIsSubmissionModalOpen(true);
+  };
+
+  const handleSubmissionSuccess = () => {
+    console.log('Submission successful, refreshing assignments');
+    fetchAssignments(); // Refresh the assignments list
   };
 
   const filteredAssignments = assignments.filter(assignment => {
@@ -246,7 +277,7 @@ export default function StudentAssignments() {
                         {getStatusText(assignment.status)}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">{assignment.courseName}</p>
+                    <p className="text-sm text-gray-600 mb-2">{assignment.offeringName}</p>
                     <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <span>📅 Due: {formatDate(assignment.due_date)}</span>
                       {assignment.score !== null && (
@@ -258,7 +289,10 @@ export default function StudentAssignments() {
                   {/* Action Button */}
                   <div className="ml-4">
                     {assignment.status === 'pending' && (
-                      <button className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition">
+                      <button 
+                        onClick={() => handleSubmitClick(assignment)}
+                        className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition"
+                      >
                         Submit Assignment
                       </button>
                     )}
@@ -267,8 +301,11 @@ export default function StudentAssignments() {
                         Awaiting Grade
                       </button>
                     )}
-                    {assignment.status === 'graded' && (
-                      <button className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition">
+                    {(assignment.status === 'graded' || assignment.status === 'submitted') && (
+                      <button
+                        onClick={() => setViewFeedback(assignment.submission)}
+                        className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition"
+                      >
                         View Feedback
                       </button>
                     )}
@@ -291,6 +328,72 @@ export default function StudentAssignments() {
           </div>
         )}
       </div>
+
+      {/* Submission Modal */}
+      {selectedAssignment && (
+        <SubmissionModal
+          isOpen={isSubmissionModalOpen}
+          onClose={() => setIsSubmissionModalOpen(false)}
+          onSuccess={handleSubmissionSuccess}
+          assignment={selectedAssignment}
+        />
+      )}
+
+      {/* Feedback Modal */}
+      {viewFeedback && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Submission Feedback</h2>
+
+            {viewFeedback.grade !== null ? (
+              <div className="mb-4 p-4 bg-green-50 rounded-xl border border-green-200">
+                <p className="text-sm text-gray-600">Grade</p>
+                <p className="text-3xl font-bold text-green-600">{viewFeedback.grade}<span className="text-lg text-gray-400">/100</span></p>
+              </div>
+            ) : (
+              <div className="mb-4 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                <p className="text-sm text-yellow-700">Your submission is awaiting grading.</p>
+              </div>
+            )}
+
+            {viewFeedback.feedback && (
+              <div className="mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-1">Trainer Feedback</p>
+                <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">{viewFeedback.feedback}</p>
+              </div>
+            )}
+
+            {viewFeedback.ai_score !== null && (
+              <div className="mb-4 p-4 bg-purple-50 rounded-xl border border-purple-200">
+                <p className="text-sm font-medium text-purple-700 mb-1">✨ AI Evaluation Score: {viewFeedback.ai_score}/100</p>
+                {viewFeedback.ai_feedback && <p className="text-sm text-gray-600">{viewFeedback.ai_feedback}</p>}
+              </div>
+            )}
+
+            {viewFeedback.plagiarism_score !== null && (
+              <div className={`mb-4 p-3 rounded-xl border ${
+                viewFeedback.plagiarism_status === 'clean' ? 'bg-green-50 border-green-200' :
+                viewFeedback.plagiarism_status === 'suspicious' ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'
+              }`}>
+                <p className="text-sm font-medium text-gray-700">
+                  🔍 Plagiarism: {viewFeedback.plagiarism_score}% similarity — 
+                  <span className={`ml-1 ${
+                    viewFeedback.plagiarism_status === 'clean' ? 'text-green-600' :
+                    viewFeedback.plagiarism_status === 'suspicious' ? 'text-yellow-600' : 'text-red-600'
+                  }`}>{viewFeedback.plagiarism_status}</span>
+                </p>
+              </div>
+            )}
+
+            <button
+              onClick={() => setViewFeedback(null)}
+              className="w-full mt-2 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl hover:from-purple-600 hover:to-blue-600 transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

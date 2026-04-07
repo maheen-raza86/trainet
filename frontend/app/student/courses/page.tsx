@@ -5,18 +5,29 @@ import Link from 'next/link';
 import apiClient from '@/lib/api/client';
 import { useEffect, useState } from 'react';
 
-interface Course {
+interface CourseOffering {
   id: string;
-  title: string;
-  description: string;
+  duration_weeks: number;
+  hours_per_week: number;
+  outline: string;
+  status: string;
+  courses: {
+    id: string;
+    title: string;
+    description: string;
+  };
+  profiles: {
+    first_name: string;
+    last_name: string;
+  };
 }
 
 interface Enrollment {
   id: string;
-  course_id: string;
+  offering_id: string;
   progress: number;
   enrolled_at: string;
-  courses: Course;
+  course_offerings: CourseOffering;
 }
 
 export default function StudentCourses() {
@@ -32,7 +43,7 @@ export default function StudentCourses() {
     try {
       setLoading(true);
       setError(null);
-      const response: any = await apiClient.get('/courses/my-courses');
+      const response: any = await apiClient.get('/enrollments/my');
       setEnrollments(response.data?.enrollments || []);
     } catch (err: any) {
       console.error('Error fetching courses:', err);
@@ -100,8 +111,8 @@ export default function StudentCourses() {
 
                 {/* Course Content */}
                 <div className="p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">{enrollment.courses.title}</h3>
-                  <p className="text-sm text-gray-500 mb-4 line-clamp-2">{enrollment.courses.description}</p>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">{enrollment.course_offerings.courses.title}</h3>
+                  <p className="text-sm text-gray-500 mb-4 line-clamp-2">{enrollment.course_offerings.courses.description}</p>
 
                   {/* Progress Bar */}
                   <div className="mb-4">
@@ -119,7 +130,7 @@ export default function StudentCourses() {
 
                   {/* Action Button */}
                   <Link
-                    href={`/student/courses/${enrollment.course_id}`}
+                    href={`/student/courses/${enrollment.offering_id}`}
                     className="block w-full text-center px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition"
                   >
                     View Course

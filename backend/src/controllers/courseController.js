@@ -5,6 +5,54 @@
 
 import * as courseService from '../services/courseService.js';
 import logger from '../utils/logger.js';
+import { BadRequestError } from '../utils/errors.js';
+
+/**
+ * Create course
+ * POST /api/courses
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
+ * @param {Function} next - Next middleware
+ */
+export const createCourse = async (req, res, next) => {
+  try {
+    const { title, description } = req.body;
+    const trainerId = req.user.id;
+
+    // Validate required fields
+    if (!title || !description) {
+      throw new BadRequestError('Title and description are required');
+    }
+
+    // Validate title length
+    if (title.length < 3) {
+      throw new BadRequestError('Title must be at least 3 characters');
+    }
+    if (title.length > 100) {
+      throw new BadRequestError('Title must not exceed 100 characters');
+    }
+
+    // Validate description length
+    if (description.length < 10) {
+      throw new BadRequestError('Description must be at least 10 characters');
+    }
+    if (description.length > 500) {
+      throw new BadRequestError('Description must not exceed 500 characters');
+    }
+
+    const course = await courseService.createCourse({ title, description });
+
+    logger.info(`Course created: ${course.id} by trainer ${trainerId}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Course created successfully',
+      data: course,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 /**
  * Get all courses

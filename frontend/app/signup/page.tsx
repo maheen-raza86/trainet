@@ -50,22 +50,25 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">TRAINET</h1>
-          <p className="text-gray-600">Create your account and start learning today.</p>
+          <div className="w-20 h-20 bg-gradient-to-r from-purple-400 to-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-2xl">
+            <span className="text-white text-3xl font-bold">T</span>
+          </div>
+          <h1 className="text-4xl font-bold text-white mb-2">TRAINET</h1>
+          <p className="text-white/80">Create your account and start learning today.</p>
         </div>
 
         {/* Signup Card */}
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Sign Up</h2>
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-2xl p-8">
+          <h2 className="text-2xl font-bold text-white mb-6">Sign Up</h2>
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-600">{error}</p>
+            <div className="mb-4 p-4 bg-red-500/20 backdrop-blur-sm border border-red-400/30 rounded-xl">
+              <p className="text-sm text-red-200">{error}</p>
             </div>
           )}
 
@@ -73,7 +76,7 @@ export default function SignupPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* First Name */}
             <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="firstName" className="block text-sm font-medium text-white/90 mb-2">
                 First Name
               </label>
               <input
@@ -86,19 +89,19 @@ export default function SignupPage() {
                     message: 'First name must be at least 2 characters',
                   },
                 })}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                  errors.firstName ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/60 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition ${
+                  errors.firstName ? 'border-red-400' : 'border-white/20'
                 }`}
                 placeholder="John"
               />
               {errors.firstName && (
-                <p className="mt-1 text-sm text-red-600">{errors.firstName.message}</p>
+                <p className="mt-1 text-sm text-red-300">{errors.firstName.message}</p>
               )}
             </div>
 
             {/* Last Name */}
             <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="lastName" className="block text-sm font-medium text-white/90 mb-2">
                 Last Name
               </label>
               <input
@@ -111,19 +114,19 @@ export default function SignupPage() {
                     message: 'Last name must be at least 2 characters',
                   },
                 })}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                  errors.lastName ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/60 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition ${
+                  errors.lastName ? 'border-red-400' : 'border-white/20'
                 }`}
                 placeholder="Doe"
               />
               {errors.lastName && (
-                <p className="mt-1 text-sm text-red-600">{errors.lastName.message}</p>
+                <p className="mt-1 text-sm text-red-300">{errors.lastName.message}</p>
               )}
             </div>
 
             {/* Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-2">
                 Email Address
               </label>
               <input
@@ -136,19 +139,19 @@ export default function SignupPage() {
                     message: 'Invalid email address',
                   },
                 })}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                  errors.email ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/60 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition ${
+                  errors.email ? 'border-red-400' : 'border-white/20'
                 }`}
                 placeholder="you@example.com"
               />
               {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                <p className="mt-1 text-sm text-red-300">{errors.email.message}</p>
               )}
             </div>
 
             {/* Role Selection */}
             <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="role" className="block text-sm font-medium text-white/90 mb-2">
                 I am a
               </label>
               <select
@@ -156,24 +159,24 @@ export default function SignupPage() {
                 {...register('role', {
                   required: 'Please select your role',
                 })}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                  errors.role ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white focus:ring-2 focus:ring-purple-400 focus:border-transparent transition ${
+                  errors.role ? 'border-red-400' : 'border-white/20'
                 }`}
               >
-                <option value="">Select your role</option>
-                <option value="student">Student</option>
-                <option value="trainer">Trainer</option>
-                <option value="alumni">Alumni</option>
-                <option value="recruiter">Recruiter</option>
+                <option value="" className="bg-gray-800 text-white">Select your role</option>
+                <option value="student" className="bg-gray-800 text-white">Student</option>
+                <option value="trainer" className="bg-gray-800 text-white">Trainer</option>
+                <option value="alumni" className="bg-gray-800 text-white">Alumni</option>
+                <option value="recruiter" className="bg-gray-800 text-white">Recruiter</option>
               </select>
               {errors.role && (
-                <p className="mt-1 text-sm text-red-600">{errors.role.message}</p>
+                <p className="mt-1 text-sm text-red-300">{errors.role.message}</p>
               )}
             </div>
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-white/90 mb-2">
                 Password
               </label>
               <input
@@ -190,22 +193,22 @@ export default function SignupPage() {
                     message: 'Password must contain uppercase, lowercase, and number',
                   },
                 })}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                  errors.password ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/60 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition ${
+                  errors.password ? 'border-red-400' : 'border-white/20'
                 }`}
                 placeholder="••••••••"
               />
               {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                <p className="mt-1 text-sm text-red-300">{errors.password.message}</p>
               )}
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-white/60">
                 Must be at least 8 characters with uppercase, lowercase, and number
               </p>
             </div>
 
             {/* Confirm Password */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-white/90 mb-2">
                 Confirm Password
               </label>
               <input
@@ -215,13 +218,13 @@ export default function SignupPage() {
                   required: 'Please confirm your password',
                   validate: (value) => value === password || 'Passwords do not match',
                 })}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition ${
-                  errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-white/60 focus:ring-2 focus:ring-purple-400 focus:border-transparent transition ${
+                  errors.confirmPassword ? 'border-red-400' : 'border-white/20'
                 }`}
                 placeholder="••••••••"
               />
               {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
+                <p className="mt-1 text-sm text-red-300">{errors.confirmPassword.message}</p>
               )}
             </div>
 
@@ -233,31 +236,31 @@ export default function SignupPage() {
                 {...register('terms' as any, {
                   required: 'You must accept the terms and conditions',
                 })}
-                className="h-4 w-4 mt-1 text-primary-500 focus:ring-primary-500 border-gray-300 rounded"
+                className="h-4 w-4 mt-1 text-purple-500 focus:ring-purple-400 border-white/20 rounded bg-white/10"
               />
-              <label htmlFor="terms" className="ml-2 block text-sm text-gray-700">
+              <label htmlFor="terms" className="ml-2 block text-sm text-white/80">
                 I agree to the{' '}
-                <Link href="/terms" className="text-primary-500 hover:text-primary-600">
+                <Link href="/terms" className="text-purple-300 hover:text-purple-200 transition-colors">
                   Terms and Conditions
                 </Link>{' '}
                 and{' '}
-                <Link href="/privacy" className="text-primary-500 hover:text-primary-600">
+                <Link href="/privacy" className="text-purple-300 hover:text-purple-200 transition-colors">
                   Privacy Policy
                 </Link>
               </label>
             </div>
             {errors.terms && (
-              <p className="text-sm text-red-600">{(errors.terms as any).message}</p>
+              <p className="text-sm text-red-300">{(errors.terms as any).message}</p>
             )}
 
             {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-full py-3 px-4 rounded-lg font-medium text-white transition ${
+              className={`w-full py-3 px-4 rounded-xl font-medium text-white transition-all duration-200 ${
                 isLoading
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-primary-500 hover:bg-primary-600 active:bg-primary-700'
+                  ? 'bg-gray-500/50 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 hover:shadow-lg hover:transform hover:-translate-y-0.5'
               }`}
             >
               {isLoading ? (
@@ -293,10 +296,10 @@ export default function SignupPage() {
           {/* Divider */}
           <div className="mt-6 relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
+              <div className="w-full border-t border-white/20"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Already have an account?</span>
+              <span className="px-2 bg-transparent text-white/60">Already have an account?</span>
             </div>
           </div>
 
@@ -304,7 +307,7 @@ export default function SignupPage() {
           <div className="mt-6">
             <Link
               href="/login"
-              className="w-full flex justify-center py-3 px-4 border border-primary-500 rounded-lg font-medium text-primary-500 hover:bg-primary-50 transition"
+              className="w-full flex justify-center py-3 px-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl font-medium text-white hover:bg-white/20 transition-all duration-200"
             >
               Login to your account
             </Link>
@@ -313,7 +316,7 @@ export default function SignupPage() {
 
         {/* Back to Home */}
         <div className="mt-6 text-center">
-          <Link href="/" className="text-sm text-gray-600 hover:text-gray-900">
+          <Link href="/" className="text-sm text-white/60 hover:text-white/90 transition-colors">
             ← Back to home
           </Link>
         </div>

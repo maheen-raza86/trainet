@@ -28,4 +28,16 @@ router.post('/login', authLimiter, authController.login);
  */
 router.post('/verify-email', userController.verifyEmail);
 
+/**
+ * Request password reset
+ * POST /api/auth/forgot-password
+ */
+router.post('/forgot-password', authLimiter, authController.forgotPassword);
+
+/**
+ * Reset password with token
+ * POST /api/auth/reset-password
+ */
+router.post('/reset-password', authLimiter, authController.resetPassword);
+
 export default router;

@@ -1,6 +1,8 @@
 'use client';
 
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import CreateCourseModal from '@/components/trainer/CreateCourseModal';
+import Link from 'next/link';
 import apiClient from '@/lib/api/client';
 import { useEffect, useState } from 'react';
 
@@ -9,12 +11,21 @@ interface Course {
   title: string;
   description: string;
   created_at: string;
+  duration_weeks?: number;
+  hours_per_week?: number;
+  outline?: string;
+  status?: string;
+  courses?: {
+    title: string;
+    description: string;
+  };
 }
 
 export default function TrainerCourses() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
     fetchCourses();
@@ -25,15 +36,19 @@ export default function TrainerCourses() {
       setLoading(true);
       setError(null);
 
-      const response: any = await apiClient.get('/courses');
-      const coursesData = response.data?.courses || [];
-      setCourses(coursesData);
+      const response: any = await apiClient.get('/course-offerings/trainer');
+      const offeringsData = response.data?.offerings || [];
+      setCourses(offeringsData);
     } catch (err: any) {
-      console.error('Error fetching courses:', err);
-      setError(err.message || 'Failed to load courses');
+      console.error('Error fetching course offerings:', err);
+      setError(err.message || 'Failed to load course offerings');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCreateSuccess = () => {
+    fetchCourses();
   };
 
   if (loading) {
@@ -71,11 +86,14 @@ export default function TrainerCourses() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Courses</h1>
-            <p className="text-gray-600 mt-1">Manage your courses and track student progress</p>
+            <h1 className="text-2xl font-bold text-gray-900">My Course Offerings</h1>
+            <p className="text-gray-600 mt-1">Manage your course offerings and track student progress</p>
           </div>
-          <button className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition">
-            Create New Course
+          <button 
+            onClick={() => setIsCreateModalOpen(true)}
+            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition"
+          >
+            Create New Course Offering
           </button>
         </div>
 
@@ -93,8 +111,18 @@ export default function TrainerCourses() {
 
                 {/* Course Content */}
                 <div className="p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">{course.title}</h3>
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">{course.description}</p>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">
+                    {course.courses?.title || course.title}
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                    {course.courses?.description || course.description}
+                  </p>
+                  
+                  {course.duration_weeks && (
+                    <div className="text-xs text-gray-500 mb-2">
+                      Duration: {course.duration_weeks} weeks • {course.hours_per_week} hours/week
+                    </div>
+                  )}
                   
                   <div className="text-xs text-gray-500 mb-4">
                     Created: {new Date(course.created_at).toLocaleDateString()}
@@ -102,9 +130,12 @@ export default function TrainerCourses() {
 
                   {/* Action Buttons */}
                   <div className="flex space-x-2">
-                    <button className="flex-1 px-3 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition text-sm">
+                    <Link
+                      href={`/trainer/courses/${course.id}`}
+                      className="flex-1 px-3 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition text-sm text-center"
+                    >
                       Manage
-                    </button>
+                    </Link>
                     <button className="flex-1 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm">
                       View Students
                     </button>
@@ -116,14 +147,24 @@ export default function TrainerCourses() {
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
             <div className="text-6xl mb-4">📚</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">No Courses Yet</h3>
-            <p className="text-gray-600 mb-6">Create your first course to get started</p>
-            <button className="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition">
-              Create Your First Course
+            <h3 className="text-xl font-bold text-gray-900 mb-2">No Course Offerings Yet</h3>
+            <p className="text-gray-600 mb-6">Create your first course offering to get started</p>
+            <button 
+              onClick={() => setIsCreateModalOpen(true)}
+              className="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition"
+            >
+              Create Your First Course Offering
             </button>
           </div>
         )}
       </div>
+
+      {/* Create Course Modal */}
+      <CreateCourseModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={handleCreateSuccess}
+      />
     </DashboardLayout>
   );
 }
