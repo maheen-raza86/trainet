@@ -13,6 +13,9 @@ import submissionRoutes from './submissionRoutes.js';
 import enrollmentRoutes from './enrollmentRoutes.js';
 import enrollQRRoutes from './enrollQRRoutes.js';
 import materialRoutes from './materialRoutes.js';
+import progressRoutes from './progressRoutes.js';
+import certificateRoutes from './certificateRoutes.js';
+import adminRoutes from './adminRoutes.js';
 
 const router = express.Router();
 
@@ -133,5 +136,23 @@ router.use('/submissions', submissionRoutes);
  * /api/materials/*
  */
 router.use('/materials', materialRoutes);
+
+/**
+ * Progress routes
+ * /api/progress/*
+ */
+router.use('/progress', progressRoutes);
+
+/**
+ * Certificate routes
+ * /api/certificates/*
+ */
+router.use('/certificates', certificateRoutes);
+
+/**
+ * Admin routes
+ * /api/admin/* — admin role only
+ */
+router.use('/admin', adminRoutes);
 
 export default router;

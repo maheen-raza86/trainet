@@ -61,6 +61,16 @@ interface OfferingDetail {
   materials: Material[];
 }
 
+interface Progress {
+  totalAssignments: number;
+  completedSubmissions: number;
+  gradedSubmissions: number;
+  completionPercentage: number;
+  averageScore: number | null;
+  status: 'not_started' | 'in_progress' | 'completed';
+  lastActivity: string;
+}
+
 export default function StudentCourseDetail() {
   const params = useParams();
   const offeringId = params.id as string;
@@ -68,12 +78,15 @@ export default function StudentCourseDetail() {
   const [offering, setOffering] = useState<OfferingDetail | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [progress, setProgress] = useState<Progress | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'materials' | 'assignments' | 'live'>('materials');
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [viewFeedback, setViewFeedback] = useState<Submission | null>(null);
+  const [certClaiming, setCertClaiming] = useState(false);
+  const [certSuccess, setCertSuccess] = useState(false);
 
   useEffect(() => {
     fetchAll();
@@ -84,15 +97,17 @@ export default function StudentCourseDetail() {
       setLoading(true);
       setError(null);
 
-      const [detailRes, assignmentsRes, submissionsRes] = await Promise.all([
+      const [detailRes, assignmentsRes, submissionsRes, progressRes] = await Promise.all([
         apiClient.get(`/materials/offering-detail/${offeringId}`),
         apiClient.get(`/assignments/course-offering/${offeringId}`),
         apiClient.get('/submissions/my'),
+        apiClient.get(`/progress/${offeringId}`).catch(() => null),
       ]);
 
       setOffering((detailRes as any).data);
       setAssignments((assignmentsRes as any).data?.assignments || []);
       setSubmissions((submissionsRes as any).data?.submissions || []);
+      if (progressRes) setProgress((progressRes as any).data);
     } catch (err: any) {
       setError(err.message || 'Failed to load course');
     } finally {
@@ -114,6 +129,19 @@ export default function StudentCourseDetail() {
   };
 
   const getMaterialUrl = (m: Material) => m.external_url || (m.file_url ? `http://localhost:5000${m.file_url}` : null);
+
+  const handleClaimCertificate = async () => {
+    try {
+      setCertClaiming(true);
+      await apiClient.post('/certificates/issue', { offeringId });
+      setCertSuccess(true);
+      fetchAll();
+    } catch (err: any) {
+      alert(err.message || 'Failed to claim certificate');
+    } finally {
+      setCertClaiming(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -154,6 +182,73 @@ export default function StudentCourseDetail() {
             <span>⏱ {offering.duration_weeks} weeks · {offering.hours_per_week}h/week</span>
           </div>
         </div>
+
+        {/* Progress Panel */}
+        {progress && (
+          <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-white/30">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-gray-800">My Progress</h2>
+              <span className={`px-3 py-1 text-xs rounded-full font-medium ${
+                progress.status === 'completed' ? 'bg-green-100 text-green-700' :
+                progress.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                'bg-gray-100 text-gray-600'
+              }`}>
+                {progress.status === 'completed' ? '✓ Completed' :
+                 progress.status === 'in_progress' ? 'In Progress' : 'Not Started'}
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="mb-4">
+              <div className="flex justify-between text-sm text-gray-600 mb-1">
+                <span>Assignment Completion</span>
+                <span className="font-medium">{progress.completionPercentage}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div
+                  className="bg-gradient-to-r from-purple-500 to-blue-500 h-3 rounded-full transition-all duration-500"
+                  style={{ width: `${progress.completionPercentage}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="bg-white/60 rounded-xl p-3 border border-white/30">
+                <p className="text-2xl font-bold text-gray-800">{progress.completedSubmissions}</p>
+                <p className="text-xs text-gray-500">Submitted</p>
+              </div>
+              <div className="bg-white/60 rounded-xl p-3 border border-white/30">
+                <p className="text-2xl font-bold text-gray-800">{progress.totalAssignments}</p>
+                <p className="text-xs text-gray-500">Total</p>
+              </div>
+              <div className="bg-white/60 rounded-xl p-3 border border-white/30">
+                <p className="text-2xl font-bold text-gray-800">
+                  {progress.averageScore !== null ? `${progress.averageScore}` : '—'}
+                </p>
+                <p className="text-xs text-gray-500">Avg Score</p>
+              </div>
+            </div>
+
+            {/* Certificate claim */}
+            {progress.completionPercentage >= 60 && (
+              <div className="mt-4">
+                {certSuccess ? (
+                  <div className="flex items-center justify-center space-x-2 bg-green-100 rounded-xl p-3 border border-green-200">
+                    <span className="text-green-700 text-sm font-medium">🎓 Certificate issued! Check your Certificates page.</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleClaimCertificate}
+                    disabled={certClaiming}
+                    className="w-full py-2.5 bg-gradient-to-r from-yellow-400 to-orange-400 text-white rounded-xl text-sm font-semibold hover:from-yellow-500 hover:to-orange-500 transition disabled:opacity-50"
+                  >
+                    {certClaiming ? 'Claiming...' : '🎓 Claim Certificate'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex space-x-1 bg-white/60 backdrop-blur-sm rounded-xl p-1 border border-white/30">

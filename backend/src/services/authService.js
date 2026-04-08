@@ -6,6 +6,8 @@
 import { supabaseAuthClient, supabaseAdminClient } from '../config/supabaseClient.js';
 import logger from '../utils/logger.js';
 import { BadRequestError, UnauthorizedError } from '../utils/errors.js';
+import { writeLog } from './adminService.js';
+import { updateLastLogin } from './adminService.js';
 
 /**
  * Sign up a new user
@@ -157,6 +159,12 @@ export const signIn = async (credentials) => {
     }
 
     logger.info(`User logged in successfully: ${email}`);
+
+    // Log login event for admin monitoring (FR-AD-3)
+    writeLog('user_login', `User logged in: ${email}`, authData.user.id, { role: profileData.role });
+
+    // Update last login timestamp (non-blocking)
+    updateLastLogin(authData.user.id);
 
     return {
       accessToken: authData.session.access_token,
