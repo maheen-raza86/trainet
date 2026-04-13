@@ -125,3 +125,29 @@ export const updateSetting = async (req, res, next) => {
     res.status(200).json({ success: true, message: 'Setting updated', data: setting });
   } catch (error) { next(error); }
 };
+
+// ── Active Courses Monitoring ──────────────────────────────────────────────
+
+export const getActiveOfferings = async (req, res, next) => {
+  try {
+    const offerings = await adminService.getActiveOfferings();
+    res.status(200).json({ success: true, data: { offerings, count: offerings.length } });
+  } catch (error) { next(error); }
+};
+
+export const getOfferingMonitorDetail = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const detail = await adminService.getOfferingMonitorDetail(id);
+    res.status(200).json({ success: true, data: detail });
+  } catch (error) { next(error); }
+};
+
+// ── Deep Analytics ─────────────────────────────────────────────────────────
+
+export const getAnalytics = async (req, res, next) => {
+  try {
+    const data = await adminService.getAnalyticsData();
+    res.status(200).json({ success: true, data });
+  } catch (error) { next(error); }
+};

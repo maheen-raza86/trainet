@@ -190,3 +190,91 @@ export const enrollInOffering = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Delete course offering (trainer only)
+ * DELETE /api/course-offerings/:id
+ */
+export const deleteOffering = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const trainerId = req.user.id;
+    await courseOfferingService.deleteOffering(id, trainerId);
+    res.status(200).json({ success: true, message: 'Course offering deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Admin: Update course offering
+ * PUT /api/admin/course-offerings/:id
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
+ * @param {Function} next - Next middleware
+ */
+export const adminUpdateCourseOffering = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { durationWeeks, hoursPerWeek, outline, startDate, endDate, status } = req.body;
+
+    // Validate at least one field is provided
+    if (
+      durationWeeks === undefined &&
+      hoursPerWeek === undefined &&
+      outline === undefined &&
+      startDate === undefined &&
+      endDate === undefined &&
+      status === undefined
+    ) {
+      throw new BadRequestError('At least one field must be provided for update');
+    }
+
+    const updateData = {};
+    if (durationWeeks !== undefined) updateData.durationWeeks = durationWeeks;
+    if (hoursPerWeek !== undefined) updateData.hoursPerWeek = hoursPerWeek;
+    if (outline !== undefined) updateData.outline = outline;
+    if (startDate !== undefined) updateData.startDate = startDate;
+    if (endDate !== undefined) updateData.endDate = endDate;
+    if (status !== undefined) updateData.status = status;
+
+    const offering = await courseOfferingService.adminUpdateCourseOffering(id, updateData);
+
+    logger.info(`Course offering ${id} updated by admin ${req.user.id}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Course offering updated successfully',
+      data: offering,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Admin: Delete or archive course offering
+ * DELETE /api/admin/course-offerings/:id
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
+ * @param {Function} next - Next middleware
+ */
+export const adminDeleteOffering = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await courseOfferingService.adminDeleteOffering(id);
+
+    logger.info(`Course offering ${id} ${result.action} by admin ${req.user.id}`);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      data: {
+        action: result.action,
+        offering: result.data,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};

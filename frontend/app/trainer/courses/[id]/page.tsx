@@ -1,6 +1,7 @@
 'use client';
 
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import QREnrollmentModal from '@/components/trainer/QREnrollmentModal';
 import apiClient from '@/lib/api/client';
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
@@ -13,6 +14,7 @@ import {
   PlusIcon,
   PencilIcon,
   ArrowTopRightOnSquareIcon,
+  QrCodeIcon,
 } from '@heroicons/react/24/outline';
 
 interface Material {
@@ -77,6 +79,9 @@ export default function TrainerCourseManage() {
   const [assignDesc, setAssignDesc] = useState('');
   const [assignDue, setAssignDue] = useState('');
   const [assignSaving, setAssignSaving] = useState(false);
+
+  // QR Enrollment Modal
+  const [showQRModal, setShowQRModal] = useState(false);
 
   useEffect(() => {
     fetchAll();
@@ -219,8 +224,19 @@ export default function TrainerCourseManage() {
           <Link href="/trainer/courses" className="text-white/70 hover:text-white text-sm mb-3 inline-block">
             ← Back to My Courses
           </Link>
-          <h1 className="text-2xl font-bold mb-1">{offering.courses.title}</h1>
-          <p className="text-white/80 text-sm">{offering.duration_weeks} weeks · {offering.hours_per_week}h/week</p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-bold mb-1">{offering.courses.title}</h1>
+              <p className="text-white/80 text-sm">{offering.duration_weeks} weeks · {offering.hours_per_week}h/week</p>
+            </div>
+            <button
+              onClick={() => setShowQRModal(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg text-white text-sm font-medium transition"
+            >
+              <QrCodeIcon className="w-5 h-5" />
+              <span>QR Enrollment</span>
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -439,6 +455,14 @@ export default function TrainerCourseManage() {
           </form>
         )}
       </div>
+
+      {/* QR Enrollment Modal */}
+      <QREnrollmentModal
+        isOpen={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        offeringId={offeringId}
+        courseTitle={offering.courses.title}
+      />
     </DashboardLayout>
   );
 }

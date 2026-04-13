@@ -230,9 +230,11 @@ export default function AdminUsers() {
                           <button onClick={() => handleEdit(u)} className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition">
                             <PencilIcon className="w-4 h-4" />
                           </button>
-                          <button onClick={() => setDeleteConfirm(u)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
+                          {u.role !== 'admin' && (
+                            <button onClick={() => setDeleteConfirm(u)} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

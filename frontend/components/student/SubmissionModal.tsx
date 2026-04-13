@@ -11,6 +11,7 @@ interface SubmissionModalProps {
     id: string;
     title: string;
     description: string;
+    due_date?: string;
   };
 }
 
@@ -18,6 +19,8 @@ export default function SubmissionModal({ isOpen, onClose, onSuccess, assignment
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string>('');
+
+  const isClosed = assignment.due_date ? new Date() > new Date(assignment.due_date) : false;
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -47,6 +50,12 @@ export default function SubmissionModal({ isOpen, onClose, onSuccess, assignment
     
     if (!selectedFile) {
       setError('Please select a file to upload');
+      return;
+    }
+
+    // Defensive check: prevent submission if deadline has passed
+    if (isClosed) {
+      setError('Deadline has passed. Submission not allowed.');
       return;
     }
 
@@ -111,7 +120,14 @@ export default function SubmissionModal({ isOpen, onClose, onSuccess, assignment
         {/* Header */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">Submit Assignment</h2>
+            <div className="flex items-center space-x-3">
+              <h2 className="text-xl font-bold text-gray-900">Submit Assignment</h2>
+              {assignment.due_date && (
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${isClosed ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                  {isClosed ? 'Closed' : 'Open'}
+                </span>
+              )}
+            </div>
             <button
               onClick={handleClose}
               disabled={isSubmitting}
@@ -205,7 +221,7 @@ export default function SubmissionModal({ isOpen, onClose, onSuccess, assignment
             </button>
             <button
               type="submit"
-              disabled={!selectedFile || isSubmitting}
+              disabled={!selectedFile || isSubmitting || isClosed}
               className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {isSubmitting ? (
@@ -216,6 +232,8 @@ export default function SubmissionModal({ isOpen, onClose, onSuccess, assignment
                   </svg>
                   Submitting...
                 </span>
+              ) : isClosed ? (
+                'Deadline Passed'
               ) : (
                 'Submit Assignment'
               )}

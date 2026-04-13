@@ -33,8 +33,8 @@ export const getUserProfile = async (userId) => {
       role: data.role,
       bio: data.bio,
       skills: data.skills,
-      portfolioUrl: data.portfolio_url,
       avatar_url: data.avatar_url,
+      profile_picture_url: data.profile_picture_url,
       emailVerified: data.email_verified,
       createdAt: data.created_at,
     };
@@ -55,13 +55,12 @@ export const getUserProfile = async (userId) => {
  * @param {string} [profileData.lastName] - Last name
  * @param {string} [profileData.bio] - User bio
  * @param {string} [profileData.skills] - User skills
- * @param {string} [profileData.portfolioUrl] - Portfolio URL
  * @param {string} [profileData.avatar_url] - Avatar URL
  * @returns {Promise<Object>} Updated profile
  */
 export const updateUserProfile = async (userId, profileData) => {
   try {
-    const { firstName, lastName, bio, skills, portfolioUrl, avatar_url } = profileData;
+    const { firstName, lastName, bio, skills, avatar_url } = profileData;
 
     // Build update object with only provided fields
     const updateData = {};
@@ -94,12 +93,13 @@ export const updateUserProfile = async (userId, profileData) => {
       updateData.skills = skills;
     }
 
-    if (portfolioUrl !== undefined) {
-      updateData.portfolio_url = portfolioUrl;
-    }
-    
     if (avatar_url !== undefined) {
       updateData.avatar_url = avatar_url;
+    }
+
+    // profile_picture_url (from file upload)
+    if (profileData.profile_picture_url !== undefined) {
+      updateData.profile_picture_url = profileData.profile_picture_url;
     }
 
     // Check if there's anything to update
@@ -117,6 +117,12 @@ export const updateUserProfile = async (userId, profileData) => {
 
     if (error) {
       logger.error('Error updating user profile:', error);
+      // Provide a clear message for schema mismatch errors
+      if (error.message && error.message.includes('column') && error.message.includes('schema cache')) {
+        throw new BadRequestError(
+          'Profile update failed due to a database schema issue. Please run the latest migrations and try again.'
+        );
+      }
       throw new BadRequestError(error.message);
     }
 
@@ -134,8 +140,8 @@ export const updateUserProfile = async (userId, profileData) => {
       role: data.role,
       bio: data.bio,
       skills: data.skills,
-      portfolioUrl: data.portfolio_url,
       avatar_url: data.avatar_url,
+      profile_picture_url: data.profile_picture_url,
     };
   } catch (error) {
     if (
@@ -309,5 +315,123 @@ export const changePassword = async (userId, currentPassword, newPassword) => {
     }
     logger.error('Unexpected error changing password:', error);
     throw new BadRequestError('Failed to change password');
+  }
+};
+
+/**
+ * Validate QR token and enroll student into the associated offering (or course).
+ * Supports both offering_id (new) and course_id (legacy).
+ * Marks single-use tokens as used.
+ *
+ * @param {string} studentId
+ * @param {string} token
+ * @returns {Promise<Object>} { enrollment, offeringTitle, courseTitle }
+ */
+export const validateAndEnrollViaQR = async (studentId, token) => {
+  try {
+    // Fetch token with related data
+    const { data: qrToken, error: tokenError } = await supabaseAdminClient
+      .from('enrollment_qr_tokens')
+      .select(`
+        *,
+        courses (id, title, description),
+        course_offerings (
+          id, status,
+          courses (id, title)
+        )
+      `)
+      .eq('token', token)
+      .single();
+
+    if (tokenError || !qrToken) {
+      throw new BadRequestError('Invalid or expired QR code');
+    }
+
+    // Check expiry
+    if (new Date() > new Date(qrToken.expires_at)) {
+      throw new BadRequestError('This QR code has expired');
+    }
+
+    // Check single-use
+    if (qrToken.is_single_use && qrToken.used_at) {
+      throw new BadRequestError('This QR code has already been used');
+    }
+
+    // Determine enrollment target: offering_id preferred over course_id
+    let enrollment;
+    let displayTitle;
+
+    if (qrToken.offering_id) {
+      const offering = qrToken.course_offerings;
+      if (!offering || offering.status !== 'open') {
+        throw new BadRequestError('This course offering is not open for enrollment');
+      }
+
+      // Check duplicate enrollment
+      const { data: existing } = await supabaseAdminClient
+        .from('enrollments')
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('offering_id', qrToken.offering_id)
+        .single();
+
+      if (existing) {
+        throw new BadRequestError('You are already enrolled in this course offering');
+      }
+
+      const { data: newEnrollment, error: enrollError } = await supabaseAdminClient
+        .from('enrollments')
+        .insert([{ student_id: studentId, offering_id: qrToken.offering_id, progress: 0 }])
+        .select()
+        .single();
+
+      if (enrollError) throw new BadRequestError('Failed to enroll in course offering');
+
+      enrollment = newEnrollment;
+      displayTitle = offering.courses?.title || 'Course';
+    } else {
+      // Legacy: enroll via course_id
+      const { data: existing } = await supabaseAdminClient
+        .from('enrollments')
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('course_id', qrToken.course_id)
+        .single();
+
+      if (existing) {
+        throw new BadRequestError('You are already enrolled in this course');
+      }
+
+      const { data: newEnrollment, error: enrollError } = await supabaseAdminClient
+        .from('enrollments')
+        .insert([{ student_id: studentId, course_id: qrToken.course_id, progress: 0 }])
+        .select()
+        .single();
+
+      if (enrollError) throw new BadRequestError('Failed to enroll in course');
+
+      enrollment = newEnrollment;
+      displayTitle = qrToken.courses?.title || 'Course';
+    }
+
+    // Mark token as used (if single-use)
+    if (qrToken.is_single_use) {
+      await supabaseAdminClient
+        .from('enrollment_qr_tokens')
+        .update({ used_at: new Date().toISOString() })
+        .eq('id', qrToken.id);
+    }
+
+    logger.info(`Student ${studentId} enrolled via QR token ${token}`);
+
+    return {
+      enrollment,
+      courseTitle: displayTitle,
+      offeringId: qrToken.offering_id || null,
+    };
+  } catch (error) {
+    if (error instanceof BadRequestError) throw error;
+    logger.error('Unexpected error in QR enrollment:', error);
+    throw new BadRequestError('Failed to process QR enrollment');
   }
 };

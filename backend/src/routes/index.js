@@ -12,10 +12,14 @@ import assignmentRoutes from './assignmentRoutes.js';
 import submissionRoutes from './submissionRoutes.js';
 import enrollmentRoutes from './enrollmentRoutes.js';
 import enrollQRRoutes from './enrollQRRoutes.js';
+import qrEnrollmentRoutes from './qrEnrollmentRoutes.js';
 import materialRoutes from './materialRoutes.js';
 import progressRoutes from './progressRoutes.js';
 import certificateRoutes from './certificateRoutes.js';
 import adminRoutes from './adminRoutes.js';
+import workPracticeRoutes from './workPracticeRoutes.js';
+import alumniRoutes from './alumniRoutes.js';
+import recruiterRoutes from './recruiterRoutes.js';
 
 const router = express.Router();
 
@@ -102,6 +106,13 @@ router.use('/users', userRoutes);
 router.use('/courses', courseRoutes);
 
 /**
+ * Admin routes
+ * /api/admin/* — admin role only
+ * IMPORTANT: Must be registered BEFORE /course-offerings to avoid route conflicts
+ */
+router.use('/admin', adminRoutes);
+
+/**
  * Course Offering routes
  * /api/course-offerings/*
  */
@@ -118,6 +129,12 @@ router.use('/enrollments', enrollmentRoutes);
  * /api/enroll/*
  */
 router.use('/enroll', enrollQRRoutes);
+
+/**
+ * QR Enrollment Management routes (trainer)
+ * /api/qr-enrollment/*
+ */
+router.use('/qr-enrollment', qrEnrollmentRoutes);
 
 /**
  * Assignment routes
@@ -150,9 +167,21 @@ router.use('/progress', progressRoutes);
 router.use('/certificates', certificateRoutes);
 
 /**
- * Admin routes
- * /api/admin/* — admin role only
+ * Work & Practice routes
+ * /api/tasks/*
  */
-router.use('/admin', adminRoutes);
+router.use('/tasks', workPracticeRoutes);
+
+/**
+ * Alumni & Consultancy Network routes
+ * /api/alumni/*
+ */
+router.use('/alumni', alumniRoutes);
+
+/**
+ * Recruiter / Talent Pool routes
+ * /api/recruiter/*
+ */
+router.use('/recruiter', recruiterRoutes);
 
 export default router;

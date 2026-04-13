@@ -189,6 +189,14 @@ export const updateUser = async (userId, updateData, adminId) => {
     throw new BadRequestError(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
   }
 
+  // Prevent assigning admin role if another admin already exists
+  if (role === 'admin') {
+    const { data: existingAdmins } = await supabase.from('profiles').select('id').eq('role', 'admin').neq('id', userId);
+    if (existingAdmins && existingAdmins.length > 0) {
+      throw new ForbiddenError('Only one admin account is allowed in the system');
+    }
+  }
+
   const fields = {};
   if (role !== undefined) fields.role = role;
   if (email_verified !== undefined) fields.email_verified = email_verified;
@@ -221,6 +229,10 @@ export const deleteUser = async (userId, adminId) => {
     .single();
 
   if (fetchError || !user) throw new NotFoundError('User not found');
+
+  // Prevent admin self-deletion and admin account deletion
+  if (userId === adminId) throw new ForbiddenError('You cannot delete your own admin account');
+  if (user.role === 'admin') throw new ForbiddenError('Admin accounts cannot be deleted through this interface');
 
   // SRDS exception: prevent deletion if user has active course relations
   if (user.role === 'trainer') {
@@ -269,7 +281,7 @@ export const deleteUser = async (userId, adminId) => {
 export const getAllCourses = async () => {
   const { data, error } = await supabase
     .from('courses')
-    .select('id, title, description, created_at')
+    .select('id, title, description, created_at, is_system_course')
     .order('created_at', { ascending: false });
 
   if (error) throw new BadRequestError('Failed to fetch courses');
@@ -293,11 +305,24 @@ export const getAllOfferings = async () => {
 export const deleteCourse = async (courseId, adminId) => {
   const { data: course } = await supabase
     .from('courses')
-    .select('id, title')
+    .select('id, title, is_system_course')
     .eq('id', courseId)
     .single();
 
   if (!course) throw new NotFoundError('Course not found');
+
+  // Prevent deletion of system-protected courses
+  if (course.is_system_course) {
+    throw new ForbiddenError(
+      `"${course.title}" is a protected system course and cannot be deleted. Unmark it as a system course first if deletion is intended.`
+    );
+  }
+
+  // Prevent deletion if course has active offerings
+  const { data: activeOfferings } = await supabase.from('course_offerings').select('id').eq('course_id', courseId).eq('status', 'open');
+  if (activeOfferings && activeOfferings.length > 0) {
+    throw new ForbiddenError(`Cannot delete course with ${activeOfferings.length} active offering(s). Close all offerings first.`);
+  }
 
   const { error } = await supabase.from('courses').delete().eq('id', courseId);
   if (error) throw new BadRequestError('Failed to delete course');
@@ -437,4 +462,353 @@ export const updateLastActivity = async (userId) => {
     .from('profiles')
     .update({ last_activity_at: new Date().toISOString() })
     .eq('id', userId);
+};
+
+// ─────────────────────────────────────────────
+// ACTIVE COURSES MONITORING
+// ─────────────────────────────────────────────
+
+/**
+ * Get all currently active course offerings with enrollment counts.
+ */
+export const getActiveOfferings = async () => {
+  // Auto-close expired offerings first
+  const now = new Date().toISOString();
+  await supabase
+    .from('course_offerings')
+    .update({ status: 'closed' })
+    .eq('status', 'open')
+    .lt('end_date', now)
+    .not('end_date', 'is', null);
+
+  const { data, error } = await supabase
+    .from('course_offerings')
+    .select(`
+      id, status, duration_weeks, hours_per_week, start_date, end_date, created_at,
+      courses (id, title, description),
+      profiles!course_offerings_trainer_id_fkey (id, first_name, last_name, email)
+    `)
+    .eq('status', 'open')
+    .order('created_at', { ascending: false });
+
+  if (error) throw new BadRequestError('Failed to fetch active offerings');
+
+  const offerings = data || [];
+
+  // Fetch enrollment counts for each offering
+  const withCounts = await Promise.all(offerings.map(async (o) => {
+    const { count } = await supabase
+      .from('enrollments')
+      .select('id', { count: 'exact', head: true })
+      .eq('offering_id', o.id);
+    return { ...o, enrollmentCount: count || 0 };
+  }));
+
+  return withCounts;
+};
+
+/**
+ * Get detailed monitoring data for a single course offering.
+ */
+export const getOfferingMonitorDetail = async (offeringId) => {
+  // Fetch offering info
+  const { data: offering, error: offeringError } = await supabase
+    .from('course_offerings')
+    .select(`
+      id, status, duration_weeks, hours_per_week, start_date, end_date, created_at,
+      courses (id, title, description),
+      profiles!course_offerings_trainer_id_fkey (id, first_name, last_name, email)
+    `)
+    .eq('id', offeringId)
+    .single();
+
+  if (offeringError || !offering) throw new NotFoundError('Course offering not found');
+
+  // Fetch all enrollments with student profiles
+  const { data: enrollments } = await supabase
+    .from('enrollments')
+    .select(`
+      id, student_id, progress, enrolled_at,
+      profiles!enrollments_student_id_fkey (id, first_name, last_name, email, last_activity_at)
+    `)
+    .eq('offering_id', offeringId)
+    .order('enrolled_at', { ascending: false });
+
+  const enrollmentList = enrollments || [];
+
+  // Fetch all assignments for this offering
+  const { data: assignments } = await supabase
+    .from('assignments')
+    .select('id, title, due_date')
+    .eq('course_offering_id', offeringId);
+
+  const assignmentList = assignments || [];
+  const assignmentIds = assignmentList.map(a => a.id);
+
+  // Fetch all submissions for these assignments
+  let submissions = [];
+  if (assignmentIds.length > 0) {
+    const { data: subs } = await supabase
+      .from('submissions')
+      .select('id, assignment_id, student_id, grade, ai_score, plagiarism_status, submitted_at, status')
+      .in('assignment_id', assignmentIds);
+    submissions = subs || [];
+  }
+
+  // Compute per-student stats
+  const studentStats = enrollmentList.map((e) => {
+    const studentSubs = submissions.filter(s => s.student_id === e.student_id);
+    const gradedSubs = studentSubs.filter(s => s.grade !== null);
+    const scores = gradedSubs.map(s => s.grade ?? s.ai_score).filter(v => v !== null);
+    const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+    const completionPct = assignmentList.length > 0
+      ? Math.round((studentSubs.length / assignmentList.length) * 100)
+      : 0;
+
+    let statusLabel = 'active';
+    if (completionPct === 100) statusLabel = 'completed';
+    else if (avgScore !== null && avgScore < 50) statusLabel = 'struggling';
+
+    return {
+      studentId: e.student_id,
+      name: e.profiles ? `${e.profiles.first_name} ${e.profiles.last_name}` : 'Unknown',
+      email: e.profiles?.email || '',
+      progress: e.progress || completionPct,
+      completionPct,
+      avgScore,
+      submissionsCount: studentSubs.length,
+      status: statusLabel,
+      lastActivity: e.profiles?.last_activity_at || e.enrolled_at,
+      enrolledAt: e.enrolled_at,
+    };
+  });
+
+  // Aggregate stats
+  const totalEnrolled = enrollmentList.length;
+  const avgProgress = totalEnrolled > 0
+    ? Math.round(studentStats.reduce((s, st) => s + st.completionPct, 0) / totalEnrolled)
+    : 0;
+  const allScores = studentStats.map(s => s.avgScore).filter(v => v !== null);
+  const avgScore = allScores.length > 0
+    ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length)
+    : null;
+  const plagiarismFlags = submissions.filter(s => s.plagiarism_status === 'flagged' || s.plagiarism_status === 'suspicious').length;
+  const completedStudents = studentStats.filter(s => s.status === 'completed').length;
+  const strugglingStudents = studentStats.filter(s => s.status === 'struggling').length;
+
+  return {
+    offering,
+    stats: {
+      totalEnrolled,
+      avgProgress,
+      avgScore,
+      totalAssignments: assignmentList.length,
+      totalSubmissions: submissions.length,
+      plagiarismFlags,
+      completedStudents,
+      strugglingStudents,
+    },
+    students: studentStats,
+    assignments: assignmentList,
+  };
+};
+
+// ─────────────────────────────────────────────
+// DEEP ANALYTICS
+// ─────────────────────────────────────────────
+
+/**
+ * Compute multi-dimensional analytics for the admin analytics page.
+ */
+export const getAnalyticsData = async () => {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [
+    profilesRes,
+    offeringsRes,
+    enrollmentsRes,
+    assignmentsRes,
+    submissionsRes,
+  ] = await Promise.all([
+    supabase.from('profiles').select('id, role, created_at, last_activity_at'),
+    supabase.from('course_offerings').select(`
+      id, status, course_id, trainer_id, created_at,
+      courses (id, title),
+      profiles!course_offerings_trainer_id_fkey (id, first_name, last_name)
+    `),
+    supabase.from('enrollments').select('id, offering_id, student_id, progress, enrolled_at'),
+    supabase.from('assignments').select('id, course_offering_id'),
+    supabase.from('submissions').select('id, assignment_id, student_id, grade, ai_score, plagiarism_status, status, submitted_at'),
+  ]);
+
+  const profiles = profilesRes.data || [];
+  const offerings = offeringsRes.data || [];
+  const enrollments = enrollmentsRes.data || [];
+  const assignments = assignmentsRes.data || [];
+  const submissions = submissionsRes.data || [];
+
+  // ── Section 1: Platform Overview ──────────────────────────────────────
+  const usersByRole = profiles.reduce((acc, p) => {
+    acc[p.role] = (acc[p.role] || 0) + 1;
+    return acc;
+  }, {});
+  const activeUsers7d = profiles.filter(p => p.last_activity_at && p.last_activity_at >= sevenDaysAgo).length;
+  const totalEnrollments = enrollments.length;
+  const courseEngagementRate = offerings.length > 0
+    ? Math.round((totalEnrollments / offerings.length) * 10) / 10
+    : 0;
+
+  // ── Section 2: Learning Analytics ─────────────────────────────────────
+  const gradedSubs = submissions.filter(s => s.grade !== null || s.ai_score !== null);
+  const scores = gradedSubs.map(s => s.grade ?? s.ai_score).filter(v => v !== null);
+  const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+
+  // Completion rate: students who submitted all assignments for their enrolled offerings
+  const studentIds = [...new Set(enrollments.map(e => e.student_id))];
+  let completedStudents = 0;
+  for (const sid of studentIds) {
+    const studentEnrollments = enrollments.filter(e => e.student_id === sid);
+    let allComplete = true;
+    for (const enr of studentEnrollments) {
+      const offeringAssignments = assignments.filter(a => a.course_offering_id === enr.offering_id);
+      if (offeringAssignments.length === 0) continue;
+      const studentSubs = submissions.filter(s => s.student_id === sid && offeringAssignments.some(a => a.id === s.assignment_id));
+      if (studentSubs.length < offeringAssignments.length) { allComplete = false; break; }
+    }
+    if (allComplete && studentEnrollments.length > 0) completedStudents++;
+  }
+  const completionRate = studentIds.length > 0 ? Math.round((completedStudents / studentIds.length) * 100) : 0;
+  const dropOffRate = 100 - completionRate;
+
+  // ── Section 3: Course Performance ─────────────────────────────────────
+  const coursePerformance = offerings.map(o => {
+    const offeringEnrollments = enrollments.filter(e => e.offering_id === o.id);
+    const offeringAssignments = assignments.filter(a => a.course_offering_id === o.id);
+    const offeringSubmissions = submissions.filter(s =>
+      offeringAssignments.some(a => a.id === s.assignment_id)
+    );
+    const offeringScores = offeringSubmissions
+      .map(s => s.grade ?? s.ai_score)
+      .filter(v => v !== null);
+    const avgCourseScore = offeringScores.length > 0
+      ? Math.round(offeringScores.reduce((a, b) => a + b, 0) / offeringScores.length)
+      : null;
+    const enrollCount = offeringEnrollments.length;
+    const completionPct = offeringAssignments.length > 0 && enrollCount > 0
+      ? Math.round((offeringSubmissions.length / (offeringAssignments.length * enrollCount)) * 100)
+      : 0;
+
+    return {
+      id: o.id,
+      title: o.courses?.title || 'Unknown',
+      status: o.status,
+      enrollCount,
+      avgScore: avgCourseScore,
+      completionPct: Math.min(100, completionPct),
+    };
+  });
+
+  const topCourses = [...coursePerformance]
+    .filter(c => c.enrollCount > 0)
+    .sort((a, b) => (b.completionPct - a.completionPct))
+    .slice(0, 5);
+
+  const lowCourses = [...coursePerformance]
+    .filter(c => c.enrollCount > 0)
+    .sort((a, b) => (a.completionPct - b.completionPct))
+    .slice(0, 5);
+
+  // ── Section 4: Trainer Performance ────────────────────────────────────
+  const trainerMap = {};
+  for (const o of offerings) {
+    if (!o.trainer_id) continue;
+    const tid = o.trainer_id;
+    if (!trainerMap[tid]) {
+      trainerMap[tid] = {
+        id: tid,
+        name: o.profiles ? `${o.profiles.first_name} ${o.profiles.last_name}` : 'Unknown',
+        courses: 0,
+        totalStudents: 0,
+        scores: [],
+      };
+    }
+    trainerMap[tid].courses++;
+    const offeringEnrollments = enrollments.filter(e => e.offering_id === o.id);
+    trainerMap[tid].totalStudents += offeringEnrollments.length;
+    const offeringAssignments = assignments.filter(a => a.course_offering_id === o.id);
+    const offeringSubmissions = submissions.filter(s =>
+      offeringAssignments.some(a => a.id === s.assignment_id)
+    );
+    offeringSubmissions.forEach(s => {
+      const v = s.grade ?? s.ai_score;
+      if (v !== null) trainerMap[tid].scores.push(v);
+    });
+  }
+  const trainerPerformance = Object.values(trainerMap).map((t) => ({
+    ...t,
+    avgScore: t.scores.length > 0 ? Math.round(t.scores.reduce((a, b) => a + b, 0) / t.scores.length) : null,
+  })).sort((a, b) => b.totalStudents - a.totalStudents).slice(0, 5);
+
+  // ── Section 5: Plagiarism & Integrity ─────────────────────────────────
+  const totalSubs = submissions.length;
+  const flagged = submissions.filter(s => s.plagiarism_status === 'flagged').length;
+  const suspicious = submissions.filter(s => s.plagiarism_status === 'suspicious').length;
+  const clean = submissions.filter(s => s.plagiarism_status === 'clean').length;
+  const pending = totalSubs - flagged - suspicious - clean;
+  const flaggedPct = totalSubs > 0 ? Math.round((flagged / totalSubs) * 100) : 0;
+
+  // ── Section 6: Weekly buckets ──────────────────────────────────────────
+  const buildWeeklyBuckets = (items, dateField) => {
+    const buckets = [];
+    const now = new Date();
+    for (let i = 7; i >= 0; i--) {
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - i * 7);
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 7);
+      const label = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const count = items.filter(item => {
+        const d = new Date(item[dateField]);
+        return d >= weekStart && d < weekEnd;
+      }).length;
+      buckets.push({ label, count });
+    }
+    return buckets;
+  };
+
+  return {
+    overview: {
+      usersByRole,
+      activeUsers7d,
+      totalUsers: profiles.length,
+      totalEnrollments,
+      courseEngagementRate,
+    },
+    learning: {
+      avgScore,
+      completionRate,
+      dropOffRate,
+      totalSubmissions: submissions.length,
+      gradedSubmissions: gradedSubs.length,
+    },
+    coursePerformance: {
+      top: topCourses,
+      low: lowCourses,
+    },
+    trainerPerformance,
+    integrity: {
+      total: totalSubs,
+      flagged,
+      suspicious,
+      clean,
+      pending,
+      flaggedPct,
+    },
+    charts: {
+      userGrowth: buildWeeklyBuckets(profiles, 'created_at'),
+      enrollmentTrends: buildWeeklyBuckets(enrollments, 'enrolled_at'),
+      submissionTrends: buildWeeklyBuckets(submissions, 'submitted_at'),
+    },
+  };
 };

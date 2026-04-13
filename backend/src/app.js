@@ -28,8 +28,12 @@ const app = express();
 
 /**
  * Security Middleware
+ * Allow cross-origin image loading for uploaded avatars
  */
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false,
+}));
 
 /**
  * CORS Middleware
@@ -44,8 +48,16 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 /**
  * Static File Serving for Uploads
+ * Cross-origin headers allow the frontend (port 3000) to load images from backend (port 5000)
  */
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+const staticOptions = {
+  setHeaders: (res) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  },
+};
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'), staticOptions));
+app.use('/uploads/avatars', express.static(path.join(__dirname, '../uploads/avatars'), staticOptions));
 
 /**
  * Logging Middleware

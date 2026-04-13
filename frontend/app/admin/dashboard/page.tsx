@@ -123,10 +123,10 @@ export default function AdminDashboard() {
   if (!isLoading && isAuthenticated && user && user.role !== 'admin') return null;
 
   const kpis = stats ? [
-    { label: 'Total Users', value: stats.users.total, icon: UsersIcon, color: 'from-blue-500 to-cyan-500', sub: `+${stats.users.newLast30Days} this month` },
-    { label: 'Course Offerings', value: stats.courses.totalOfferings, icon: AcademicCapIcon, color: 'from-purple-500 to-pink-500', sub: `${stats.courses.activeOfferings} active` },
-    { label: 'Submissions', value: stats.learning.totalSubmissions, icon: DocumentTextIcon, color: 'from-green-500 to-emerald-500', sub: `${stats.learning.completionRate}% completion` },
-    { label: 'Certificates', value: stats.certificates.total, icon: TrophyIcon, color: 'from-yellow-500 to-orange-500', sub: `${stats.certificates.verificationCount} verifications` },
+    { label: 'Total Users', href: '/admin/users', value: stats.users.total, icon: UsersIcon, color: 'from-blue-500 to-cyan-500', sub: `+${stats.users.newLast30Days} this month` },
+    { label: 'Course Offerings', href: '/admin/courses', value: stats.courses.totalOfferings, icon: AcademicCapIcon, color: 'from-purple-500 to-pink-500', sub: `${stats.courses.activeOfferings} active` },
+    { label: 'Active Courses', href: '/admin/active-courses', value: stats.courses.activeOfferings, icon: DocumentTextIcon, color: 'from-green-500 to-emerald-500', sub: `${stats.courses.totalEnrollments} enrolled` },
+    { label: 'Certificates', href: '/admin/certificates', value: stats.certificates.total, icon: TrophyIcon, color: 'from-yellow-500 to-orange-500', sub: `${stats.certificates.verificationCount} verifications` },
   ] : [];
 
   if (loading) {
@@ -162,7 +162,7 @@ export default function AdminDashboard() {
           {kpis.map((kpi, i) => {
             const Icon = kpi.icon;
             return (
-              <div key={i} className="group bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/30 hover:bg-white/80 transition hover:-translate-y-1 hover:shadow-xl">
+              <Link key={i} href={kpi.href} className="group bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/30 hover:bg-white/80 transition hover:-translate-y-1 hover:shadow-xl">
                 <div className="flex items-center justify-between mb-3">
                   <div className={`w-12 h-12 bg-gradient-to-r ${kpi.color} rounded-xl flex items-center justify-center group-hover:scale-110 transition`}>
                     <Icon className="w-6 h-6 text-white" />
@@ -171,7 +171,7 @@ export default function AdminDashboard() {
                 <p className="text-3xl font-bold text-gray-800">{kpi.value.toLocaleString()}</p>
                 <p className="text-sm text-gray-600 mt-1">{kpi.label}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{kpi.sub}</p>
-              </div>
+              </Link>
             );
           })}
         </div>
@@ -179,18 +179,30 @@ export default function AdminDashboard() {
         {/* Charts row */}
         {stats?.charts && (
           <div className="grid lg:grid-cols-2 gap-6">
-            <BarChart
-              data={stats.charts.userGrowth}
-              title="User Growth"
-              yLabel="New users"
-              color="bg-gradient-to-t from-purple-500 to-blue-400"
-            />
-            <BarChart
-              data={stats.charts.courseActivity}
-              title="Course Activity"
-              yLabel="New enrollments"
-              color="bg-gradient-to-t from-green-500 to-emerald-400"
-            />
+            {stats.charts.userGrowth && stats.charts.userGrowth.length > 0 ? (
+              <BarChart
+                data={stats.charts.userGrowth}
+                title="User Growth"
+                yLabel="New users"
+                color="bg-gradient-to-t from-purple-500 to-blue-400"
+              />
+            ) : (
+              <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/30 p-6 flex items-center justify-center h-48">
+                <p className="text-gray-400 text-sm">No data available yet</p>
+              </div>
+            )}
+            {stats.charts.courseActivity && stats.charts.courseActivity.length > 0 ? (
+              <BarChart
+                data={stats.charts.courseActivity}
+                title="Course Activity"
+                yLabel="New enrollments"
+                color="bg-gradient-to-t from-green-500 to-emerald-400"
+              />
+            ) : (
+              <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/30 p-6 flex items-center justify-center h-48">
+                <p className="text-gray-400 text-sm">No data available yet</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -274,10 +286,10 @@ export default function AdminDashboard() {
           {[
             { label: 'Users', href: '/admin/users', icon: '👥' },
             { label: 'Courses', href: '/admin/courses', icon: '📚' },
+            { label: 'Active', href: '/admin/active-courses', icon: '🟢' },
             { label: 'Certificates', href: '/admin/certificates', icon: '🎓' },
             { label: 'Logs', href: '/admin/logs', icon: '📋' },
-            { label: 'Settings', href: '/admin/settings', icon: '⚙️' },
-            { label: 'Analytics', href: '/admin/dashboard', icon: '📊' },
+            { label: 'Analytics', href: '/admin/analytics', icon: '📊' },
           ].map((link) => (
             <Link key={link.href} href={link.href}
               className="bg-white/60 backdrop-blur-sm rounded-2xl p-4 border border-white/30 text-center hover:bg-white/80 hover:-translate-y-1 hover:shadow-lg transition">

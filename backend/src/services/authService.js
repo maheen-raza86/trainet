@@ -23,6 +23,21 @@ export const signUp = async (userData) => {
   const { email, password, firstName, lastName, role = 'student' } = userData;
 
   try {
+    // Check if registration is enabled
+    try {
+      const { data: regSetting } = await supabaseAdminClient
+        .from('settings')
+        .select('value')
+        .eq('key', 'registration_enabled')
+        .single();
+      if (regSetting && regSetting.value === 'false') {
+        throw new BadRequestError('New user registration is currently disabled. Please contact an administrator.');
+      }
+    } catch (settingErr) {
+      if (settingErr instanceof BadRequestError) throw settingErr;
+      // Settings table not available — allow registration
+    }
+
     // Step 1: Create user in Supabase Auth using anon client
     // Supabase will automatically send verification email
     const { data: authData, error: authError } = await supabaseAuthClient.auth.signUp({

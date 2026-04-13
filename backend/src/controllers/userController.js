@@ -67,18 +67,14 @@ export const getUserProfile = async (req, res, next) => {
 };
 
 /**
- * Update user profile
+ * Update user profile (PUT — full update, kept for backward compat)
  * PUT /api/users/profile
- * @param {Object} req - Express request
- * @param {Object} res - Express response
- * @param {Function} next - Next middleware
  */
 export const updateProfile = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { firstName, lastName, bio, skills, portfolioUrl, avatar_url } = req.body;
+    const { firstName, lastName, bio, skills, avatar_url } = req.body;
 
-    // Prevent role modification through profile update
     if (req.body.role) {
       return res.status(403).json({
         success: false,
@@ -88,18 +84,80 @@ export const updateProfile = async (req, res, next) => {
     }
 
     const updatedProfile = await userService.updateUserProfile(userId, {
-      firstName,
-      lastName,
-      bio,
-      skills,
-      portfolioUrl,
-      avatar_url,
+      firstName, lastName, bio, skills, avatar_url,
     });
 
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
       data: updatedProfile,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update user profile (PATCH — partial update with optional avatar upload)
+ * PATCH /api/users/profile
+ */
+export const patchProfile = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { firstName, lastName, bio, skills } = req.body;
+    const file = req.file;
+
+    if (req.body.role) {
+      return res.status(403).json({
+        success: false,
+        message: 'Role cannot be modified through profile update',
+        error: 'Forbidden',
+      });
+    }
+
+    const updatePayload = { firstName, lastName, bio, skills };
+
+    // If a file was uploaded, build the full absolute URL and store it
+    if (file) {
+      const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+      updatePayload.profile_picture_url = `${backendUrl}/uploads/avatars/${file.filename}`;
+    }
+
+    const updatedProfile = await userService.updateUserProfile(userId, updatePayload);
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: updatedProfile,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Enroll via QR code (POST — token in body)
+ * POST /api/enroll/qr
+ */
+export const enrollViaQRPost = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    const studentId = req.user.id;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'QR token is required',
+        error: 'Validation Error',
+      });
+    }
+
+    const result = await userService.validateAndEnrollViaQR(studentId, token);
+
+    res.status(201).json({
+      success: true,
+      message: 'Successfully enrolled via QR code',
+      data: result,
     });
   } catch (error) {
     next(error);

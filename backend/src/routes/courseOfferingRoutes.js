@@ -45,4 +45,10 @@ router.put('/:id', verifyToken, authorizeRoles('trainer'), courseOfferingControl
  */
 router.post('/enroll', verifyToken, courseOfferingController.enrollInOffering);
 
+/**
+ * Delete course offering (trainer only)
+ * DELETE /api/course-offerings/:id
+ */
+router.delete('/:id', verifyToken, authorizeRoles('trainer'), courseOfferingController.deleteOffering);
+
 export default router;

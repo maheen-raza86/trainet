@@ -66,6 +66,11 @@ export const submitAssignment = async (submissionData) => {
       throw new NotFoundError('Assignment not found');
     }
 
+    // Deadline validation
+    if (assignment.due_date && new Date() > new Date(assignment.due_date)) {
+      throw new BadRequestError('Deadline has passed. Submission not allowed.');
+    }
+
     // Verify student is enrolled in the course offering
     const { data: enrollment, error: enrollmentError } = await supabase
       .from('enrollments')

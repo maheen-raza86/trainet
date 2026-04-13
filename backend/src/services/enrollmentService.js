@@ -136,3 +136,28 @@ export const getStudentEnrollments = async (studentId) => {
     throw new BadRequestError('Failed to fetch enrollments');
   }
 };
+
+/**
+ * Get enrollments for a specific course offering
+ * @param {string} offeringId - Course offering ID
+ * @returns {Promise<Array>} List of enrollments
+ */
+export const getEnrollmentsByOffering = async (offeringId) => {
+  try {
+    const { data, error } = await supabase
+      .from('enrollments')
+      .select('id, student_id, status, progress, enrolled_at')
+      .eq('offering_id', offeringId);
+
+    if (error) {
+      logger.error('Error fetching enrollments by offering:', error);
+      throw new BadRequestError('Failed to fetch enrollments');
+    }
+
+    return data || [];
+  } catch (error) {
+    if (error instanceof BadRequestError) throw error;
+    logger.error('Unexpected error fetching enrollments by offering:', error);
+    throw new BadRequestError('Failed to fetch enrollments');
+  }
+};

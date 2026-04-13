@@ -55,6 +55,24 @@ export const createCourseOffering = async (trainerId, offeringData) => {
       throw new BadRequestError('durationWeeks must be one of: 4, 6, 8, 12');
     }
 
+    // Enforce max_course_duration_weeks from settings
+    try {
+      const { data: setting } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'max_course_duration_weeks')
+        .single();
+      if (setting) {
+        const maxWeeks = parseInt(setting.value, 10);
+        if (!isNaN(maxWeeks) && durationWeeks > maxWeeks) {
+          throw new BadRequestError(`Course duration cannot exceed ${maxWeeks} weeks (system limit)`);
+        }
+      }
+    } catch (settingErr) {
+      if (settingErr instanceof BadRequestError) throw settingErr;
+      // If settings table doesn't exist yet, skip enforcement
+    }
+
     // Validate hoursPerWeek
     if (hoursPerWeek < 1 || hoursPerWeek > 10) {
       throw new BadRequestError('hoursPerWeek must be between 1 and 10');
@@ -90,6 +108,19 @@ export const createCourseOffering = async (trainerId, offeringData) => {
 
     if (activeOfferings && activeOfferings.length >= 5) {
       throw new ForbiddenError('You cannot create more than 5 active course offerings');
+    }
+
+    // Check for duplicate active offering (same trainer + same course)
+    const { data: duplicateOffering } = await supabase
+      .from('course_offerings')
+      .select('id')
+      .eq('trainer_id', trainerId)
+      .eq('course_id', courseId)
+      .eq('status', 'open')
+      .single();
+
+    if (duplicateOffering) {
+      throw new ConflictError('You already have an active offering for this course. Close it before creating a new one.');
     }
 
     // Create course offering
@@ -200,12 +231,9 @@ export const updateCourseOffering = async (offeringId, trainerId, updateData) =>
       throw new ForbiddenError('You are not authorized to edit this course offering');
     }
 
-    // Validate durationWeeks if provided
+    // Trainers cannot modify duration — only admin can
     if (durationWeeks !== undefined) {
-      const allowedDurations = [4, 6, 8, 12];
-      if (!allowedDurations.includes(durationWeeks)) {
-        throw new BadRequestError('durationWeeks must be one of: 4, 6, 8, 12');
-      }
+      throw new ForbiddenError('Course duration cannot be modified after creation. Contact an admin to change duration.');
     }
 
     // Validate hoursPerWeek if provided
@@ -277,6 +305,15 @@ export const updateCourseOffering = async (offeringId, trainerId, updateData) =>
  */
 export const getAvailableOfferings = async () => {
   try {
+    // Auto-close expired offerings
+    const now = new Date().toISOString();
+    await supabase
+      .from('course_offerings')
+      .update({ status: 'closed' })
+      .eq('status', 'open')
+      .lt('end_date', now)
+      .not('end_date', 'is', null);
+
     const { data, error } = await supabase
       .from('course_offerings')
       .select(`
@@ -387,5 +424,232 @@ export const enrollInOffering = async (studentId, offeringId) => {
     }
     logger.error('Unexpected error during enrollment:', error);
     throw new BadRequestError('Failed to enroll in course offering');
+  }
+};
+
+/**
+ * Delete a course offering (trainer only, with safety checks)
+ * @param {string} offeringId - Course offering ID
+ * @param {string} trainerId - Trainer user ID
+ */
+export const deleteOffering = async (offeringId, trainerId) => {
+  try {
+    const { data: offering, error: offeringError } = await supabase
+      .from('course_offerings')
+      .select('id, trainer_id, status, courses(title)')
+      .eq('id', offeringId)
+      .single();
+
+    if (offeringError || !offering) throw new NotFoundError('Course offering not found');
+
+    if (offering.trainer_id !== trainerId) {
+      throw new ForbiddenError('You are not authorized to delete this course offering');
+    }
+
+    // Cannot delete if students are enrolled
+    const { count: enrollmentCount } = await supabase
+      .from('enrollments')
+      .select('id', { count: 'exact', head: true })
+      .eq('offering_id', offeringId);
+
+    if (enrollmentCount && enrollmentCount > 0) {
+      throw new ForbiddenError(
+        `Cannot delete offering with ${enrollmentCount} enrolled student(s). Close the offering instead.`
+      );
+    }
+
+    const { error } = await supabase.from('course_offerings').delete().eq('id', offeringId);
+    if (error) throw new BadRequestError('Failed to delete course offering');
+
+    logger.info(`Course offering ${offeringId} deleted by trainer ${trainerId}`);
+    return true;
+  } catch (error) {
+    if (error instanceof NotFoundError || error instanceof ForbiddenError || error instanceof BadRequestError) {
+      throw error;
+    }
+    logger.error('Unexpected error deleting offering:', error);
+    throw new BadRequestError('Failed to delete course offering');
+  }
+};
+
+/**
+ * Update course offering (Admin only - can modify all fields including duration)
+ * @param {string} offeringId - Course offering ID
+ * @param {Object} updateData - Update data
+ * @returns {Promise<Object>} Updated course offering
+ */
+export const adminUpdateCourseOffering = async (offeringId, updateData) => {
+  try {
+    const { durationWeeks, hoursPerWeek, outline, startDate, endDate, status } = updateData;
+
+    // Verify offering exists
+    const { data: offering, error: offeringError } = await supabase
+      .from('course_offerings')
+      .select('*')
+      .eq('id', offeringId)
+      .single();
+
+    if (offeringError || !offering) {
+      throw new NotFoundError('Course offering not found');
+    }
+
+    // Validate hoursPerWeek if provided
+    if (hoursPerWeek !== undefined && (hoursPerWeek < 1 || hoursPerWeek > 10)) {
+      throw new BadRequestError('hoursPerWeek must be between 1 and 10');
+    }
+
+    // Validate durationWeeks if provided
+    if (durationWeeks !== undefined && (durationWeeks < 1 || durationWeeks > 52)) {
+      throw new BadRequestError('durationWeeks must be between 1 and 52');
+    }
+
+    // Validate outline length if provided
+    if (outline !== undefined && outline.length < 20) {
+      throw new BadRequestError('outline must be at least 20 characters');
+    }
+
+    // Validate status if provided
+    if (status !== undefined && !['open', 'closed'].includes(status)) {
+      throw new BadRequestError('status must be "open" or "closed"');
+    }
+
+    // Prepare update object
+    const updateFields = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (durationWeeks !== undefined) updateFields.duration_weeks = durationWeeks;
+    if (hoursPerWeek !== undefined) updateFields.hours_per_week = hoursPerWeek;
+    if (outline !== undefined) updateFields.outline = outline;
+    if (startDate !== undefined) updateFields.start_date = startDate;
+    if (endDate !== undefined) updateFields.end_date = endDate;
+    if (status !== undefined) updateFields.status = status;
+
+    // Update course offering
+    const { data: updatedOffering, error: updateError } = await supabase
+      .from('course_offerings')
+      .update(updateFields)
+      .eq('id', offeringId)
+      .select(`
+        *,
+        courses (
+          id,
+          title,
+          description
+        ),
+        profiles!course_offerings_trainer_id_fkey (
+          id,
+          first_name,
+          last_name
+        )
+      `)
+      .single();
+
+    if (updateError) {
+      logger.error('Error updating course offering (admin):', updateError);
+      throw new BadRequestError('Failed to update course offering');
+    }
+
+    logger.info(`Course offering ${offeringId} updated by admin`);
+
+    return updatedOffering;
+  } catch (error) {
+    if (
+      error instanceof NotFoundError ||
+      error instanceof BadRequestError
+    ) {
+      throw error;
+    }
+    logger.error('Unexpected error updating course offering (admin):', error);
+    throw new BadRequestError('Failed to update course offering');
+  }
+};
+
+/**
+ * Delete or archive course offering (Admin only)
+ * @param {string} offeringId - Course offering ID
+ * @returns {Promise<Object>} Result with action taken (deleted or archived)
+ */
+export const adminDeleteOffering = async (offeringId) => {
+  try {
+    const { data: offering, error: offeringError } = await supabase
+      .from('course_offerings')
+      .select('id, status, courses(title)')
+      .eq('id', offeringId)
+      .single();
+
+    if (offeringError || !offering) {
+      logger.error('Error fetching offering:', offeringError);
+      throw new NotFoundError('Course offering not found');
+    }
+
+    // Check if students are enrolled
+    const { count: enrollmentCount, error: countError } = await supabase
+      .from('enrollments')
+      .select('id', { count: 'exact', head: true })
+      .eq('offering_id', offeringId);
+
+    if (countError) {
+      logger.error('Error checking enrollments:', countError);
+      throw new BadRequestError('Failed to check enrollments');
+    }
+
+    if (enrollmentCount && enrollmentCount > 0) {
+      // Close instead of delete (database only allows 'open' and 'closed' status)
+      const { data: closedOffering, error: closeError } = await supabase
+        .from('course_offerings')
+        .update({ status: 'closed', updated_at: new Date().toISOString() })
+        .eq('id', offeringId)
+        .select(`
+          *,
+          courses (
+            id,
+            title,
+            description
+          ),
+          profiles!course_offerings_trainer_id_fkey (
+            id,
+            first_name,
+            last_name
+          )
+        `)
+        .single();
+
+      if (closeError) {
+        logger.error('Error closing course offering:', closeError);
+        throw new BadRequestError('Failed to close course offering');
+      }
+
+      logger.info(`Course offering ${offeringId} closed by admin (${enrollmentCount} enrollments)`);
+      return {
+        action: 'closed',
+        message: `Course offering closed due to ${enrollmentCount} enrolled student(s)`,
+        data: closedOffering,
+      };
+    }
+
+    // No enrollments - safe to delete
+    const { error: deleteError } = await supabase
+      .from('course_offerings')
+      .delete()
+      .eq('id', offeringId);
+
+    if (deleteError) {
+      logger.error('Error deleting course offering:', deleteError);
+      throw new BadRequestError('Failed to delete course offering');
+    }
+
+    logger.info(`Course offering ${offeringId} deleted by admin`);
+    return {
+      action: 'deleted',
+      message: 'Course offering deleted successfully',
+      data: null,
+    };
+  } catch (error) {
+    if (error instanceof NotFoundError || error instanceof BadRequestError) {
+      throw error;
+    }
+    logger.error('Unexpected error deleting offering (admin):', error);
+    throw new BadRequestError('Failed to delete course offering');
   }
 };

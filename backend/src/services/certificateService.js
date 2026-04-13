@@ -129,6 +129,21 @@ export const checkEligibility = async (studentId, offeringId) => {
  * @param {boolean} force - skip eligibility check (admin use)
  */
 export const issueCertificate = async (studentId, offeringId, force = false) => {
+  // Check if certificate generation is enabled
+  try {
+    const { data: certSetting } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'certificates_enabled')
+      .single();
+    if (certSetting && certSetting.value === 'false') {
+      throw new ForbiddenError('Certificate generation is currently disabled by the administrator.');
+    }
+  } catch (settingErr) {
+    if (settingErr instanceof ForbiddenError) throw settingErr;
+    // Settings not available — allow certificate issuance
+  }
+
   // Check for existing certificate (prevent duplicates)
   const { data: existing } = await supabase
     .from('certificates')

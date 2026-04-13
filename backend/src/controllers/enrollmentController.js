@@ -48,6 +48,24 @@ export const enrollInCourse = async (req, res, next) => {
 };
 
 /**
+ * Get enrollments for a course offering (trainer use)
+ * GET /api/enrollments/offering/:offeringId
+ */
+export const getEnrollmentsByOffering = async (req, res, next) => {
+  try {
+    const { offeringId } = req.params;
+    const enrollments = await enrollmentService.getEnrollmentsByOffering(offeringId);
+    res.status(200).json({
+      success: true,
+      message: 'Enrollments retrieved successfully',
+      data: { enrollments, count: enrollments.length },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Get my enrollments
  * GET /api/enrollments/my
  * @param {Object} req - Express request

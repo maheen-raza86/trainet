@@ -20,6 +20,10 @@ const SETTING_META: Record<string, { label: string; type: 'number' | 'boolean' |
   ai_grading_enabled: { label: 'AI Auto-Grading Enabled', type: 'boolean' },
   max_offerings_per_trainer: { label: 'Max Active Offerings per Trainer', type: 'number', min: 1, max: 20 },
   platform_name: { label: 'Platform Name', type: 'text' },
+  registration_enabled: { label: 'Allow New Registrations', type: 'boolean' },
+  max_course_duration_weeks: { label: 'Max Course Duration (weeks)', type: 'number', min: 1, max: 52 },
+  certificates_enabled: { label: 'Certificate Generation Enabled', type: 'boolean' },
+  maintenance_mode: { label: 'Maintenance Mode', type: 'boolean' },
 };
 
 export default function AdminSettings() {

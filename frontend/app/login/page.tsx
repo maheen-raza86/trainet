@@ -28,7 +28,14 @@ export default function LoginPage() {
   useEffect(() => {
     if (shouldRedirect && user && user.role) {
       console.log('Login: Redirecting after successful login to:', user.role);
-      router.push(`/${user.role.toLowerCase()}/dashboard`);
+      // Check for a saved redirect URL (e.g. from QR enrollment)
+      const savedRedirect = localStorage.getItem('redirect_after_login');
+      if (savedRedirect) {
+        localStorage.removeItem('redirect_after_login');
+        router.push(savedRedirect);
+      } else {
+        router.push(`/${user.role.toLowerCase()}/dashboard`);
+      }
     }
   }, [shouldRedirect, user, router]);
 

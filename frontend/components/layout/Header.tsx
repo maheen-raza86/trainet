@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
+import Link from 'next/link';
 import { 
   BellIcon, 
   MagnifyingGlassIcon, 
@@ -24,6 +25,9 @@ export default function Header({ title = "Welcome back!", subtitle = "Here's wha
     logout();
     window.location.href = '/login';
   };
+
+  // Resolve the avatar image URL — DB stores full absolute URL, use directly
+  const headerAvatarSrc = user?.profile_picture_url || user?.avatar_url || null;
 
   return (
     <header className="bg-white/80 backdrop-blur-lg border-b border-white/20 px-6 py-4 sticky top-0 z-40">
@@ -63,10 +67,14 @@ export default function Header({ title = "Welcome back!", subtitle = "Here's wha
               onClick={() => setIsProfileOpen(!isProfileOpen)}
               className="flex items-center space-x-3 p-2 bg-white/60 backdrop-blur-sm rounded-xl border border-white/30 hover:bg-white/80 transition-all duration-200 hover:shadow-lg"
             >
-              <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-medium text-sm">
-                  {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
-                </span>
+              <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
+                {headerAvatarSrc ? (
+                  <img src={headerAvatarSrc} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-white font-medium text-sm">
+                    {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
+                  </span>
+                )}
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-gray-900">
@@ -91,14 +99,22 @@ export default function Header({ title = "Welcome back!", subtitle = "Here's wha
                 </div>
                 
                 <div className="py-2">
-                  <button className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  <Link
+                    href={`/${user?.role}/profile`}
+                    onClick={() => setIsProfileOpen(false)}
+                    className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
                     <UserIcon className="w-4 h-4" />
                     <span>View Profile</span>
-                  </button>
-                  <button className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  </Link>
+                  <Link
+                    href={user?.role === 'admin' ? '/admin/settings' : `/${user?.role}/profile`}
+                    onClick={() => setIsProfileOpen(false)}
+                    className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
                     <Cog6ToothIcon className="w-4 h-4" />
                     <span>Settings</span>
-                  </button>
+                  </Link>
                 </div>
                 
                 <div className="border-t border-gray-100 pt-2">

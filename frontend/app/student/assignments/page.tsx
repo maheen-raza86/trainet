@@ -116,14 +116,7 @@ export default function StudentAssignments() {
       // Sort by due date (earliest first)
       allAssignments.sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
 
-      // Hide assignments past deadline that haven't been submitted
-      const now = new Date();
-      const visibleAssignments = allAssignments.filter(a => {
-        if (a.status !== 'pending') return true; // always show submitted/graded
-        return new Date(a.due_date) >= now; // only show pending if not past deadline
-      });
-
-      setAssignments(visibleAssignments);
+      setAssignments(allAssignments);
     } catch (err: any) {
       console.error('Error fetching assignments:', err);
       setError(err.message || 'Failed to load assignments');
@@ -179,6 +172,8 @@ export default function StudentAssignments() {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
@@ -267,7 +262,9 @@ export default function StudentAssignments() {
         {/* Assignments List */}
         {filteredAssignments.length > 0 ? (
           <div className="space-y-4">
-            {filteredAssignments.map((assignment) => (
+            {filteredAssignments.map((assignment) => {
+              const isClosed = assignment.due_date && new Date() > new Date(assignment.due_date);
+              return (
               <div key={assignment.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -280,6 +277,11 @@ export default function StudentAssignments() {
                     <p className="text-sm text-gray-600 mb-2">{assignment.offeringName}</p>
                     <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <span>📅 Due: {formatDate(assignment.due_date)}</span>
+                      {assignment.due_date && (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${isClosed ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                          {isClosed ? 'Closed' : 'Open'}
+                        </span>
+                      )}
                       {assignment.score !== null && (
                         <span className="text-green-600 font-medium">✓ Score: {assignment.score}/100</span>
                       )}
@@ -289,12 +291,16 @@ export default function StudentAssignments() {
                   {/* Action Button */}
                   <div className="ml-4">
                     {assignment.status === 'pending' && (
-                      <button 
-                        onClick={() => handleSubmitClick(assignment)}
-                        className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition"
-                      >
-                        Submit Assignment
-                      </button>
+                      isClosed ? (
+                        <p className="text-sm text-red-500 font-medium">Deadline has passed</p>
+                      ) : (
+                        <button
+                          onClick={() => handleSubmitClick(assignment)}
+                          className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition"
+                        >
+                          Submit Assignment
+                        </button>
+                      )
                     )}
                     {assignment.status === 'submitted' && (
                       <button className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg cursor-not-allowed">
@@ -312,7 +318,8 @@ export default function StudentAssignments() {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
