@@ -41,15 +41,16 @@ export const getCourseCatalog = async (req, res, next) => {
 export const createCourseOffering = async (req, res, next) => {
   try {
     const trainerId = req.user.id;
-    const { courseId, durationWeeks, hoursPerWeek, outline, startDate, endDate } = req.body;
+    const { courseId, durationWeeks, hoursPerWeek, outline, startDate, endDate, registrationDeadline } = req.body;
 
     const offering = await courseOfferingService.createCourseOffering(trainerId, {
       courseId,
-      durationWeeks,
-      hoursPerWeek,
+      durationWeeks: Number(durationWeeks),
+      hoursPerWeek: Number(hoursPerWeek),
       outline,
-      startDate,
-      endDate,
+      startDate: startDate || null,
+      endDate: endDate || null,
+      registrationDeadline: registrationDeadline || null,
     });
 
     logger.info(`Course offering created: ${offering.id} by trainer ${trainerId}`);
@@ -171,13 +172,24 @@ export const getAvailableOfferings = async (req, res, next) => {
 export const enrollInOffering = async (req, res, next) => {
   try {
     const studentId = req.user.id;
+    const studentRole = req.user.role;
     const { offeringId } = req.body;
 
     if (!offeringId) {
       throw new BadRequestError('offeringId is required');
     }
 
-    const enrollment = await courseOfferingService.enrollInOffering(studentId, offeringId);
+    // SRDS: direct enrollment is disabled — must use QR token
+    // This endpoint is kept for backward compatibility but enforces student-only
+    if (studentRole !== 'student') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only students can enroll. Use the QR code to enroll.',
+        error: 'Forbidden',
+      });
+    }
+
+    const enrollment = await courseOfferingService.enrollInOffering(studentId, studentRole, offeringId);
 
     logger.info(`Student ${studentId} enrolled in offering ${offeringId}`);
 
@@ -186,6 +198,26 @@ export const enrollInOffering = async (req, res, next) => {
       message: 'Successfully enrolled in course offering',
       data: enrollment,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Remove student from offering (trainer only)
+ * DELETE /api/course-offerings/enrollment/:enrollmentId
+ */
+export const removeEnrollment = async (req, res, next) => {
+  try {
+    const { enrollmentId } = req.params;
+    const trainerId = req.user.id;
+
+    if (req.user.role !== 'trainer') {
+      return res.status(403).json({ success: false, message: 'Only trainers can remove students', error: 'Forbidden' });
+    }
+
+    await courseOfferingService.removeEnrollment(enrollmentId, trainerId);
+    res.status(200).json({ success: true, message: 'Student removed from course offering' });
   } catch (error) {
     next(error);
   }

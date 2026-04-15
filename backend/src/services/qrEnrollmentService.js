@@ -4,6 +4,7 @@
  */
 
 import supabase from '../config/supabaseClient.js';
+import { supabaseAdminClient } from '../config/supabaseClient.js';
 import logger from '../utils/logger.js';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../utils/errors.js';
 import crypto from 'crypto';
@@ -43,23 +44,24 @@ export const generateQRToken = async (trainerId, offeringId, options = {}) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiryDays);
 
-    // Create QR token in database
-    const { data, error } = await supabase
+    // Create QR token in database — use admin client to bypass RLS
+    const insertPayload = {
+      offering_id: offeringId,
+      token,
+      expires_at: expiresAt.toISOString(),
+      is_single_use: isSingleUse,
+    };
+    logger.info(`Inserting QR token payload: ${JSON.stringify(insertPayload)}`);
+
+    const { data, error } = await supabaseAdminClient
       .from('enrollment_qr_tokens')
-      .insert([
-        {
-          offering_id: offeringId,
-          token,
-          expires_at: expiresAt.toISOString(),
-          is_single_use: isSingleUse,
-        },
-      ])
+      .insert([insertPayload])
       .select()
       .single();
 
     if (error) {
-      logger.error('Error creating QR token:', error);
-      throw new BadRequestError('Failed to generate QR code');
+      logger.error('Error creating QR token (full error):', JSON.stringify(error));
+      throw new BadRequestError(`Failed to generate QR code: ${error.message || error.code || 'Unknown error'}`);
     }
 
     logger.info(`QR token generated for offering ${offeringId} by trainer ${trainerId}`);

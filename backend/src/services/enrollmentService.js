@@ -146,7 +146,10 @@ export const getEnrollmentsByOffering = async (offeringId) => {
   try {
     const { data, error } = await supabase
       .from('enrollments')
-      .select('id, student_id, status, progress, enrolled_at')
+      .select(`
+        id, student_id, status, progress, enrolled_at,
+        profiles!enrollments_student_id_fkey(id, first_name, last_name, email, role)
+      `)
       .eq('offering_id', offeringId);
 
     if (error) {
@@ -154,7 +157,8 @@ export const getEnrollmentsByOffering = async (offeringId) => {
       throw new BadRequestError('Failed to fetch enrollments');
     }
 
-    return data || [];
+    // Defensive: only return student enrollments
+    return (data || []).filter(e => e.profiles?.role === 'student');
   } catch (error) {
     if (error instanceof BadRequestError) throw error;
     logger.error('Unexpected error fetching enrollments by offering:', error);

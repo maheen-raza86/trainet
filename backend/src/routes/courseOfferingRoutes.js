@@ -41,9 +41,22 @@ router.put('/:id', verifyToken, authorizeRoles('trainer'), courseOfferingControl
 /**
  * Enroll in course offering
  * POST /api/course-offerings/enroll
- * Protected route - requires authentication
+ * DISABLED — enrollment must go through QR token (SRDS requirement)
+ * Returns 410 Gone with instructions to use QR flow
  */
-router.post('/enroll', verifyToken, courseOfferingController.enrollInOffering);
+router.post('/enroll', verifyToken, (req, res) => {
+  return res.status(410).json({
+    success: false,
+    message: 'Direct enrollment is disabled. Students must enroll via QR code. Use POST /api/enroll/qr with a valid token.',
+    error: 'Gone',
+  });
+});
+
+/**
+ * Remove student from offering (trainer only)
+ * DELETE /api/course-offerings/enrollment/:enrollmentId
+ */
+router.delete('/enrollment/:enrollmentId', verifyToken, authorizeRoles('trainer'), courseOfferingController.removeEnrollment);
 
 /**
  * Delete course offering (trainer only)

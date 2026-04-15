@@ -36,6 +36,7 @@ export default function TrainerAssignments() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<AssignmentWithCourse | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<AssignmentWithCourse | null>(null);
 
   useEffect(() => {
     fetchAssignments();
@@ -103,6 +104,17 @@ export default function TrainerAssignments() {
   const handleEditClick = (assignment: AssignmentWithCourse) => {
     setSelectedAssignment(assignment);
     setIsEditModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm) return;
+    try {
+      await apiClient.delete(`/assignments/${deleteConfirm.id}`);
+      setDeleteConfirm(null);
+      fetchAssignments();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete assignment');
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -194,6 +206,12 @@ export default function TrainerAssignments() {
                     >
                       Edit
                     </button>
+                    <button
+                      onClick={() => setDeleteConfirm(assignment)}
+                      className="px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               </div>
@@ -231,6 +249,23 @@ export default function TrainerAssignments() {
         onSuccess={handleEditSuccess}
         assignment={selectedAssignment}
       />
+
+      {/* Delete Confirmation */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 text-center">
+            <div className="text-4xl mb-4">🗑️</div>
+            <h2 className="text-lg font-bold text-gray-800 mb-2">Delete Assignment?</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Delete <strong>{deleteConfirm.title}</strong>? All submissions will also be deleted. This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={handleDeleteConfirm} className="flex-1 py-2 bg-red-500 text-white rounded-xl text-sm hover:bg-red-600 transition">Delete</button>
+              <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50 transition">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

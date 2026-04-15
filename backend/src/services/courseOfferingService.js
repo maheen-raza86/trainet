@@ -4,8 +4,11 @@
  */
 
 import supabase from '../config/supabaseClient.js';
+import { supabaseAdminClient } from '../config/supabaseClient.js';
 import logger from '../utils/logger.js';
 import { BadRequestError, NotFoundError, ConflictError, ForbiddenError } from '../utils/errors.js';
+import { createNotification } from './notificationService.js';
+import crypto from 'crypto';
 
 /**
  * Get course catalog
@@ -42,17 +45,16 @@ export const getCourseCatalog = async () => {
  */
 export const createCourseOffering = async (trainerId, offeringData) => {
   try {
-    const { courseId, durationWeeks, hoursPerWeek, outline, startDate, endDate } = offeringData;
+    const { courseId, durationWeeks, hoursPerWeek, outline, startDate, endDate, registrationDeadline } = offeringData;
 
     // Validate required fields
     if (!courseId || !durationWeeks || !hoursPerWeek || !outline) {
       throw new BadRequestError('courseId, durationWeeks, hoursPerWeek, and outline are required');
     }
 
-    // Validate durationWeeks
-    const allowedDurations = [4, 6, 8, 12];
-    if (!allowedDurations.includes(durationWeeks)) {
-      throw new BadRequestError('durationWeeks must be one of: 4, 6, 8, 12');
+    // Validate durationWeeks — flexible: 1-52 weeks
+    if (durationWeeks < 1 || durationWeeks > 52) {
+      throw new BadRequestError('durationWeeks must be between 1 and 52');
     }
 
     // Enforce max_course_duration_weeks from settings
@@ -135,6 +137,7 @@ export const createCourseOffering = async (trainerId, offeringData) => {
           outline,
           start_date: startDate || null,
           end_date: endDate || null,
+          registration_deadline: registrationDeadline || null,
           status: 'open',
         },
       ])
@@ -149,11 +152,33 @@ export const createCourseOffering = async (trainerId, offeringData) => {
       .single();
 
     if (error) {
-      logger.error('Error creating course offering:', error);
-      throw new BadRequestError('Failed to create course offering');
+      logger.error('Error creating course offering (Supabase):', JSON.stringify(error));
+      throw new BadRequestError(`Failed to create course offering: ${error.message || error.code || 'DB error'}`);
     }
 
     logger.info(`Course offering created: ${data.id} by trainer ${trainerId}`);
+
+    // Auto-generate QR token for this offering (non-blocking, 90-day expiry)
+    try {
+      const token = `QR-${crypto.randomBytes(16).toString('hex').toUpperCase()}`;
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 90);
+      const { error: qrError } = await supabaseAdminClient
+        .from('enrollment_qr_tokens')
+        .insert([{
+          offering_id: data.id,
+          token,
+          expires_at: expiresAt.toISOString(),
+          is_single_use: false,
+        }]);
+      if (qrError) {
+        logger.error('Auto QR generation failed (non-blocking):', JSON.stringify(qrError));
+      } else {
+        logger.info(`Auto-generated QR token for offering ${data.id}`);
+      }
+    } catch (qrErr) {
+      logger.error('Auto QR generation error (non-blocking):', qrErr);
+    }
 
     return data;
   } catch (error) {
@@ -348,13 +373,20 @@ export const getAvailableOfferings = async () => {
 };
 
 /**
- * Enroll student in course offering
+ * Enroll student in course offering — INTERNAL USE ONLY (called from QR flow)
+ * Direct enrollment is disabled per SRDS; enrollment must go through QR token.
  * @param {string} studentId - Student user ID
+ * @param {string} studentRole - Must be 'student'
  * @param {string} offeringId - Course offering ID
  * @returns {Promise<Object>} Enrollment data
  */
-export const enrollInOffering = async (studentId, offeringId) => {
+export const enrollInOffering = async (studentId, studentRole, offeringId) => {
   try {
+    // SRDS: only students can enroll
+    if (studentRole !== 'student') {
+      throw new ForbiddenError('Only students can enroll in course offerings');
+    }
+
     // Verify offering exists and is open
     const { data: offering, error: offeringError } = await supabase
       .from('course_offerings')
@@ -370,10 +402,15 @@ export const enrollInOffering = async (studentId, offeringId) => {
       throw new BadRequestError('This course offering is not open for enrollment');
     }
 
+    // Check registration deadline
+    if (offering.registration_deadline && new Date() > new Date(offering.registration_deadline)) {
+      throw new BadRequestError('Registration deadline has passed for this course offering');
+    }
+
     // Check if already enrolled
     const { data: existingEnrollment } = await supabase
       .from('enrollments')
-      .select('*')
+      .select('id')
       .eq('student_id', studentId)
       .eq('offering_id', offeringId)
       .single();
@@ -385,45 +422,66 @@ export const enrollInOffering = async (studentId, offeringId) => {
     // Create enrollment
     const { data, error } = await supabase
       .from('enrollments')
-      .insert([
-        {
-          student_id: studentId,
-          offering_id: offeringId,
-          status: 'active',
-          progress: 0,
-        },
-      ])
-      .select(`
-        *,
-        course_offerings (
-          *,
-          courses (
-            id,
-            title,
-            description
-          )
-        )
-      `)
+      .insert([{ student_id: studentId, offering_id: offeringId, status: 'active', progress: 0 }])
+      .select(`*, course_offerings(*, courses(id, title, description))`)
       .single();
 
     if (error) {
-      logger.error('Error creating enrollment:', error);
+      logger.error('Error creating enrollment:', JSON.stringify(error));
       throw new BadRequestError('Failed to enroll in course offering');
     }
 
     logger.info(`Student ${studentId} enrolled in offering ${offeringId}`);
 
+    // Notify trainer (non-blocking)
+    try {
+      createNotification(offering.trainer_id, {
+        title: 'New Student Enrolled',
+        message: `A student enrolled in your course: ${offering.courses?.title || offeringId}`,
+        type: 'enrollment',
+      });
+    } catch { /* non-blocking */ }
+
     return data;
   } catch (error) {
-    if (
-      error instanceof NotFoundError ||
-      error instanceof BadRequestError ||
-      error instanceof ConflictError
-    ) {
+    if (error instanceof NotFoundError || error instanceof BadRequestError || error instanceof ConflictError || error instanceof ForbiddenError) {
       throw error;
     }
     logger.error('Unexpected error during enrollment:', error);
     throw new BadRequestError('Failed to enroll in course offering');
+  }
+};
+
+/**
+ * Remove a student from a course offering (trainer only)
+ */
+export const removeEnrollment = async (enrollmentId, trainerId) => {
+  try {
+    // Verify enrollment exists and belongs to trainer's offering
+    const { data: enrollment, error: enrollError } = await supabase
+      .from('enrollments')
+      .select('id, student_id, offering_id, course_offerings(trainer_id)')
+      .eq('id', enrollmentId)
+      .single();
+
+    if (enrollError || !enrollment) throw new NotFoundError('Enrollment not found');
+
+    if (enrollment.course_offerings?.trainer_id !== trainerId) {
+      throw new ForbiddenError('You are not authorized to remove students from this offering');
+    }
+
+    const { error } = await supabase.from('enrollments').delete().eq('id', enrollmentId);
+    if (error) {
+      logger.error('Error removing enrollment:', JSON.stringify(error));
+      throw new BadRequestError('Failed to remove student');
+    }
+
+    logger.info(`Enrollment ${enrollmentId} removed by trainer ${trainerId}`);
+    return true;
+  } catch (err) {
+    if (err instanceof NotFoundError || err instanceof ForbiddenError || err instanceof BadRequestError) throw err;
+    logger.error('Unexpected error removing enrollment:', err);
+    throw new BadRequestError('Failed to remove student');
   }
 };
 

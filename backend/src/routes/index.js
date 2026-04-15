@@ -20,6 +20,9 @@ import adminRoutes from './adminRoutes.js';
 import workPracticeRoutes from './workPracticeRoutes.js';
 import alumniRoutes from './alumniRoutes.js';
 import recruiterRoutes from './recruiterRoutes.js';
+import notificationRoutes from './notificationRoutes.js';
+import aiRoutes from './aiRoutes.js';
+import supabase from '../config/supabaseClient.js';
 
 const router = express.Router();
 
@@ -85,6 +88,66 @@ router.get('/', (req, res) => {
       },
     },
   });
+});
+
+/**
+ * Global search endpoint
+ * GET /api/search?q=
+ */
+router.get('/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 2) {
+      return res.status(200).json({ success: true, data: { courses: [], alumni: [] } });
+    }
+    const term = `%${q.trim()}%`;
+    const [coursesRes, alumniRes] = await Promise.all([
+      supabase.from('courses').select('id, title, description').ilike('title', term).limit(5),
+      supabase.from('alumni_profiles').select(`id, headline, skills, profiles!alumni_profiles_user_id_fkey(id, first_name, last_name)`).or(`headline.ilike.${term},skills.ilike.${term}`).limit(5),
+    ]);
+    res.status(200).json({
+      success: true,
+      data: {
+        courses: coursesRes.data || [],
+        alumni: alumniRes.data || [],
+      },
+    });
+  } catch {
+    res.status(200).json({ success: true, data: { courses: [], alumni: [] } });
+  }
+});
+
+/**
+ * Public stats endpoint for landing page (no auth required)
+ * GET /api/public/stats
+ */
+router.get('/public/stats', async (req, res) => {
+  try {
+    const [profilesRes, coursesRes, certsRes, offeringsRes, alumniRes] = await Promise.all([
+      supabase.from('profiles').select('id, role', { count: 'exact', head: false }),
+      supabase.from('courses').select('id', { count: 'exact', head: false }),
+      supabase.from('certificates').select('id', { count: 'exact', head: false }).eq('status', 'valid'),
+      supabase.from('course_offerings').select(`id, status, courses(id, title, description), profiles!course_offerings_trainer_id_fkey(first_name, last_name)`).eq('status', 'open').order('created_at', { ascending: false }).limit(6),
+      supabase.from('alumni_profiles').select(`id, headline, skills, available_for_mentorship, profiles!alumni_profiles_user_id_fkey(id, first_name, last_name)`).limit(6),
+    ]);
+
+    const profiles = profilesRes.data || [];
+    res.status(200).json({
+      success: true,
+      data: {
+        stats: {
+          total_users: profiles.length,
+          total_students: profiles.filter(p => p.role === 'student').length,
+          total_courses: (coursesRes.data || []).length,
+          total_certificates: (certsRes.data || []).length,
+        },
+        featured_offerings: offeringsRes.data || [],
+        alumni: alumniRes.data || [],
+      },
+    });
+  } catch (err) {
+    res.status(200).json({ success: true, data: { stats: {}, featured_offerings: [], alumni: [] } });
+  }
 });
 
 /**
@@ -183,5 +246,17 @@ router.use('/alumni', alumniRoutes);
  * /api/recruiter/*
  */
 router.use('/recruiter', recruiterRoutes);
+
+/**
+ * Notification routes
+ * /api/notifications/*
+ */
+router.use('/notifications', notificationRoutes);
+
+/**
+ * AI Personalization & Recommendation routes
+ * /api/ai/*
+ */
+router.use('/ai', aiRoutes);
 
 export default router;

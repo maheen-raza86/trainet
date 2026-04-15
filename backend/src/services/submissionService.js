@@ -17,6 +17,7 @@ import {
 import { evaluateSubmission } from './aiEvaluationService.js';
 import { autoIssueCertificateIfEligible } from './certificateService.js';
 import { updateLastActivity } from './adminService.js';
+import { createNotification } from './notificationService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -122,6 +123,13 @@ export const submitAssignment = async (submissionData) => {
 
     // Track student activity (non-blocking)
     updateLastActivity(studentId);
+
+    // Notify trainer that a submission was received (non-blocking)
+    createNotification(assignment.trainer_id, {
+      title: 'New Submission Received',
+      message: `A student submitted "${assignment.title}"`,
+      type: 'submission',
+    }).catch(() => {});
 
     // ── Auto-run plagiarism + AI evaluation ──────────────────────────────
     try {
@@ -306,6 +314,13 @@ export const gradeSubmission = async (submissionId, trainerId, gradeData) => {
     }
 
     logger.info(`Submission ${submissionId} graded by trainer ${trainerId}`);
+
+    // Notify student that submission was graded (non-blocking)
+    createNotification(updatedSubmission.student_id, {
+      title: 'Submission Graded',
+      message: `Your submission for "${assignment.title}" has been graded. Score: ${grade}/100`,
+      type: 'grade',
+    }).catch(() => {});
 
     // Auto-issue certificate if student just became eligible (non-blocking)
     autoIssueCertificateIfEligible(updatedSubmission.student_id, assignment.course_offering_id);

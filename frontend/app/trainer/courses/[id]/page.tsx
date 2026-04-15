@@ -1,10 +1,9 @@
 'use client';
 
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import QREnrollmentModal from '@/components/trainer/QREnrollmentModal';
 import apiClient from '@/lib/api/client';
 import { useEffect, useState, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   DocumentTextIcon,
@@ -12,9 +11,7 @@ import {
   VideoCameraIcon,
   TrashIcon,
   PlusIcon,
-  PencilIcon,
   ArrowTopRightOnSquareIcon,
-  QrCodeIcon,
 } from '@heroicons/react/24/outline';
 
 interface Material {
@@ -50,13 +47,23 @@ interface Assignment {
 
 export default function TrainerCourseManage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const offeringId = params.id as string;
 
   const [offering, setOffering] = useState<OfferingDetail | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'materials' | 'assignments' | 'live'>('materials');
+  const [activeTab, setActiveTab] = useState<'materials' | 'assignments' | 'live' | 'students'>('materials');
+
+  // Initialize tab from URL query param
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'students') {
+      setActiveTab('students');
+      fetchStudentProgress();
+    }
+  }, [searchParams]);
 
   // Material form
   const [showMaterialForm, setShowMaterialForm] = useState(false);
@@ -80,8 +87,11 @@ export default function TrainerCourseManage() {
   const [assignDue, setAssignDue] = useState('');
   const [assignSaving, setAssignSaving] = useState(false);
 
-  // QR Enrollment Modal
   const [showQRModal, setShowQRModal] = useState(false);
+  const [studentProgress, setStudentProgress] = useState<any[]>([]);
+  const [progressLoading, setProgressLoading] = useState(false);
+  const [certMsg, setCertMsg] = useState<{ id: string; text: string; type: 'success' | 'error' } | null>(null);
+  const [removeConfirm, setRemoveConfirm] = useState<any | null>(null);
 
   useEffect(() => {
     fetchAll();
@@ -103,6 +113,39 @@ export default function TrainerCourseManage() {
       setError(err.message || 'Failed to load course');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStudentProgress = async () => {
+    try {
+      setProgressLoading(true);
+      const res: any = await apiClient.get(`/progress/offering/${offeringId}/students`);
+      setStudentProgress(res.data?.students || []);
+    } catch { /* ignore */ } finally {
+      setProgressLoading(false);
+    }
+  };
+
+  const handleGenerateCertificate = async (studentId: string) => {
+    try {
+      await apiClient.post('/certificates/trainer/issue', { studentId, offeringId });
+      setCertMsg({ id: studentId, text: 'Certificate issued!', type: 'success' });
+      setTimeout(() => setCertMsg(null), 3000);
+    } catch (err: any) {
+      setCertMsg({ id: studentId, text: err.message || 'Failed to issue certificate', type: 'error' });
+      setTimeout(() => setCertMsg(null), 4000);
+    }
+  };
+
+  const handleRemoveStudent = async () => {
+    if (!removeConfirm) return;
+    try {
+      await apiClient.delete(`/course-offerings/enrollment/${removeConfirm.enrollment_id}`);
+      setRemoveConfirm(null);
+      fetchStudentProgress();
+    } catch (err: any) {
+      alert(err.message || 'Failed to remove student');
+      setRemoveConfirm(null);
     }
   };
 
@@ -229,29 +272,25 @@ export default function TrainerCourseManage() {
               <h1 className="text-2xl font-bold mb-1">{offering.courses.title}</h1>
               <p className="text-white/80 text-sm">{offering.duration_weeks} weeks · {offering.hours_per_week}h/week</p>
             </div>
-            <button
-              onClick={() => setShowQRModal(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg text-white text-sm font-medium transition"
-            >
-              <QrCodeIcon className="w-5 h-5" />
-              <span>QR Enrollment</span>
-            </button>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex space-x-1 bg-white/60 backdrop-blur-sm rounded-xl p-1 border border-white/30">
-          {(['materials', 'assignments', 'live'] as const).map((tab) => (
+          {(['materials', 'assignments', 'live', 'students'] as const).map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab);
+                if (tab === 'students') fetchStudentProgress();
+              }}
               className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
                 activeTab === tab
                   ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              {tab === 'materials' ? '📚 Materials' : tab === 'assignments' ? '📝 Assignments' : '🎥 Live Session'}
+              {tab === 'materials' ? '📚 Materials' : tab === 'assignments' ? '📝 Assignments' : tab === 'live' ? '🎥 Live Session' : '👥 Students'}
             </button>
           ))}
         </div>
@@ -454,15 +493,96 @@ export default function TrainerCourseManage() {
             </button>
           </form>
         )}
-      </div>
+        {/* Students Progress Tab */}
+        {activeTab === 'students' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">{studentProgress.length} enrolled student{studentProgress.length !== 1 ? 's' : ''}</p>
+              <button onClick={fetchStudentProgress} className="text-xs text-purple-600 hover:text-purple-700">Refresh</button>
+            </div>
 
-      {/* QR Enrollment Modal */}
-      <QREnrollmentModal
-        isOpen={showQRModal}
-        onClose={() => setShowQRModal(false)}
-        offeringId={offeringId}
-        courseTitle={offering.courses.title}
-      />
+            {progressLoading ? (
+              <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="bg-white/60 rounded-xl p-5 border border-white/30 animate-pulse h-20" />)}</div>
+            ) : studentProgress.length === 0 ? (
+              <div className="bg-white/60 backdrop-blur-sm rounded-xl p-10 text-center border border-white/30">
+                <p className="text-gray-500 text-sm">No students enrolled yet.</p>
+              </div>
+            ) : (
+              <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/30 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50/80">
+                    <tr>
+                      {['Student', 'Progress', 'Submitted', 'Avg Grade', 'Certificate', 'Actions'].map(h => (
+                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {studentProgress.map(s => (
+                      <tr key={s.student_id} className="hover:bg-white/60 transition">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-800">{s.student?.first_name} {s.student?.last_name}</p>
+                          <p className="text-xs text-gray-500">{s.student?.email}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-24 bg-gray-200 rounded-full h-2">
+                              <div className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full" style={{ width: `${s.progress}%` }} />
+                            </div>
+                            <span className="text-xs font-medium text-gray-700">{s.progress}%</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 text-xs">{s.submitted_assignments}/{s.total_assignments}</td>
+                        <td className="px-4 py-3 text-gray-600 text-xs">{s.average_grade !== null ? `${s.average_grade}%` : '—'}</td>
+                        <td className="px-4 py-3">
+                          {certMsg?.id === s.student_id ? (
+                            <span className={`text-xs px-2 py-1 rounded-lg ${certMsg.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{certMsg.text}</span>
+                          ) : (
+                            <button
+                              onClick={() => handleGenerateCertificate(s.student_id)}
+                              disabled={s.progress < 70 && s.submitted_assignments < s.total_assignments}
+                              className="px-3 py-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs rounded-lg hover:from-purple-600 hover:to-blue-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                              title={s.progress < 70 ? 'Student needs ≥70% progress or all assignments submitted' : 'Issue certificate'}
+                            >
+                              Issue Cert
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => setRemoveConfirm(s)}
+                            className="px-3 py-1 border border-red-200 text-red-600 text-xs rounded-lg hover:bg-red-50 transition"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      {/* Remove Student Confirmation */}
+      {removeConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 text-center">
+            <div className="text-4xl mb-4">⚠️</div>
+            <h2 className="text-lg font-bold text-gray-800 mb-2">Remove Student?</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Remove <strong>{removeConfirm.student?.first_name} {removeConfirm.student?.last_name}</strong> from this course?
+              Their submissions and progress will be preserved but they will lose access.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={handleRemoveStudent} className="flex-1 py-2 bg-red-500 text-white rounded-xl text-sm hover:bg-red-600 transition">Remove</button>
+              <button onClick={() => setRemoveConfirm(null)} className="flex-1 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50 transition">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </DashboardLayout>
   );
 }

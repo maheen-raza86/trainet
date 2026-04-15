@@ -18,8 +18,8 @@ export const createAssignment = async (req, res, next) => {
   try {
     const { title, description, courseOfferingId, dueDate } = req.body;
     const trainerId = req.user.id;
+    const file = req.file;
 
-    // Validate required fields
     if (!title || !description || !courseOfferingId) {
       return res.status(400).json({
         success: false,
@@ -28,28 +28,23 @@ export const createAssignment = async (req, res, next) => {
       });
     }
 
-    // Verify user is a trainer
     if (req.user.role !== 'trainer') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only trainers can create assignments',
-        error: 'Forbidden',
-      });
+      return res.status(403).json({ success: false, message: 'Only trainers can create assignments', error: 'Forbidden' });
     }
 
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
     const assignment = await assignmentService.createAssignment({
       title,
       description,
       courseOfferingId,
       trainerId,
       dueDate,
+      fileUrl: file ? `${backendUrl}/uploads/${file.filename}` : null,
+      fileName: file ? file.originalname : null,
+      fileSize: file ? file.size : null,
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Assignment created successfully',
-      data: assignment,
-    });
+    res.status(201).json({ success: true, message: 'Assignment created successfully', data: assignment });
   } catch (error) {
     next(error);
   }

@@ -191,6 +191,8 @@ export const signIn = async (credentials) => {
         firstName: profileData.first_name,
         lastName: profileData.last_name,
         role: profileData.role,
+        profile_picture_url: profileData.profile_picture_url || null,
+        avatar_url: profileData.avatar_url || null,
       },
     };
   } catch (error) {

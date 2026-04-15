@@ -17,6 +17,7 @@ interface CourseFormData {
   outline: string;
   startDate?: string;
   endDate?: string;
+  registrationDeadline?: string;
 }
 
 interface CatalogCourse {
@@ -68,6 +69,7 @@ export default function CreateCourseModal({ isOpen, onClose, onSuccess }: Create
         outline: data.outline,
         startDate: data.startDate || null,
         endDate: data.endDate || null,
+        registrationDeadline: data.registrationDeadline || null,
       });
       
       reset();
@@ -147,20 +149,20 @@ export default function CreateCourseModal({ isOpen, onClose, onSuccess }: Create
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Duration (weeks) <span className="text-red-500">*</span>
             </label>
-            <select
+            <input
+              type="number"
+              min="1"
+              max="52"
               {...register('durationWeeks', {
                 required: 'Duration is required',
+                min: { value: 1, message: 'Minimum 1 week' },
+                max: { value: 52, message: 'Maximum 52 weeks' },
               })}
               className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
                 errors.durationWeeks ? 'border-red-500' : 'border-gray-300'
               }`}
-            >
-              <option value="">Select duration</option>
-              <option value="4">4 weeks</option>
-              <option value="6">6 weeks</option>
-              <option value="8">8 weeks</option>
-              <option value="12">12 weeks</option>
-            </select>
+              placeholder="e.g. 8"
+            />
             {errors.durationWeeks && (
               <p className="mt-1 text-sm text-red-600">{errors.durationWeeks.message}</p>
             )}
@@ -242,6 +244,19 @@ export default function CreateCourseModal({ isOpen, onClose, onSuccess }: Create
               {...register('endDate')}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
+          </div>
+
+          {/* Registration Deadline */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Registration Deadline (optional)
+            </label>
+            <input
+              type="datetime-local"
+              {...register('registrationDeadline')}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 mt-1">Students cannot enroll after this date</p>
           </div>
 
           {/* Action Buttons */}

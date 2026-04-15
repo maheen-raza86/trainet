@@ -1,496 +1,375 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { 
-  AcademicCapIcon, 
-  BeakerIcon, 
-  CpuChipIcon, 
-  QrCodeIcon, 
-  UsersIcon, 
-  BriefcaseIcon,
-  SparklesIcon,
-  ChartBarIcon,
-  ShieldCheckIcon,
-  RocketLaunchIcon,
-  StarIcon,
-  ArrowRightIcon,
-  CheckIcon
+import { useRouter } from 'next/navigation';
+import {
+  AcademicCapIcon, BeakerIcon, CpuChipIcon, QrCodeIcon,
+  UsersIcon, BriefcaseIcon, SparklesIcon, ChartBarIcon,
+  RocketLaunchIcon, StarIcon, ArrowRightIcon, EnvelopeIcon,
+  PhoneIcon, ChatBubbleLeftRightIcon, ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 
+const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
 export default function Home() {
+  const router = useRouter();
   const [scrollY, setScrollY] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const [stats, setStats] = useState({ total_users: 0, total_students: 0, total_courses: 0, total_certificates: 0 });
+  const [offerings, setOfferings] = useState<any[]>([]);
+  const [alumni, setAlumni] = useState<any[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const contactRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     setIsVisible(true);
+    fetchPublicData();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const fetchPublicData = async () => {
+    try {
+      const res = await fetch(`${API}/public/stats`);
+      const json = await res.json();
+      if (json.success) {
+        setStats(json.data.stats || {});
+        setOfferings(json.data.featured_offerings || []);
+        setAlumni(json.data.alumni || []);
+      }
+    } catch { /* ignore */ } finally { setDataLoading(false); }
+  };
+
+  const scrollToContact = () => contactRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+  const features = [
+    { icon: <CpuChipIcon className="w-8 h-8" />, title: 'AI Auto-Grading & Plagiarism', desc: 'Instant feedback with rule-based AI and similarity detection', href: '/features/ai-grading', color: 'from-purple-500 to-pink-500' },
+    { icon: <BeakerIcon className="w-8 h-8" />, title: 'Work & Practice', desc: 'Real-world industry challenges with AI evaluation', href: '/features/work-practice', color: 'from-blue-500 to-cyan-500' },
+    { icon: <QrCodeIcon className="w-8 h-8" />, title: 'QR Certificate Verification', desc: 'Tamper-proof certificates with instant QR validation', href: '/features/certificates', color: 'from-green-500 to-emerald-500' },
+    { icon: <UsersIcon className="w-8 h-8" />, title: 'Alumni Mentorship', desc: 'Connect with industry professionals for career guidance', href: '/features/alumni-mentorship', color: 'from-orange-500 to-red-500' },
+    { icon: <BriefcaseIcon className="w-8 h-8" />, title: 'Talent Pool (AI Matching)', desc: 'Skill-based hiring with intelligent candidate matching', href: '/talent-pool', color: 'from-indigo-500 to-purple-500' },
+    { icon: <AcademicCapIcon className="w-8 h-8" />, title: 'Live Sessions & Learning', desc: 'Structured courses with assignments and progress tracking', href: '/features/live-learning', color: 'from-yellow-500 to-orange-500' },
+  ];
+
+  const roles = [
+    { role: 'Student', icon: <AcademicCapIcon className="w-8 h-8" />, desc: 'Enroll via QR, submit assignments, get AI recommendations', color: 'from-blue-500 to-cyan-500', href: '/roles/student' },
+    { role: 'Trainer', icon: <BeakerIcon className="w-8 h-8" />, desc: 'Create courses, assign tasks, auto-grade, issue certificates', color: 'from-purple-500 to-pink-500', href: '/roles/trainer' },
+    { role: 'Alumni', icon: <UsersIcon className="w-8 h-8" />, desc: 'Mentor students, network, provide career guidance', color: 'from-green-500 to-emerald-500', href: '/roles/alumni' },
+    { role: 'Recruiter', icon: <BriefcaseIcon className="w-8 h-8" />, desc: 'Search talent, AI matching, view candidate profiles', color: 'from-orange-500 to-red-500', href: '/roles/recruiter' },
+  ];
+
+  const statItems = [
+    { label: 'Active Learners', value: dataLoading ? '...' : (stats.total_students || 0).toLocaleString() },
+    { label: 'Total Users', value: dataLoading ? '...' : (stats.total_users || 0).toLocaleString() },
+    { label: 'Courses Available', value: dataLoading ? '...' : (stats.total_courses || 0).toLocaleString() },
+    { label: 'Certificates Issued', value: dataLoading ? '...' : (stats.total_certificates || 0).toLocaleString() },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-      {/* Navigation */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-        scrollY > 50 ? 'bg-white/10 backdrop-blur-lg border-b border-white/20' : 'bg-transparent'
-      }`}>
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-8">
-              <Link href="/" className="text-2xl font-bold text-white">
-                TRAINET
-              </Link>
-              <div className="hidden md:flex space-x-6">
-                <Link href="#projects" className="text-white/80 hover:text-white transition-colors">
-                  Projects
-                </Link>
-                <Link href="#alumni" className="text-white/80 hover:text-white transition-colors">
-                  Alumni
-                </Link>
-                <Link href="#talent-pool" className="text-white/80 hover:text-white transition-colors">
-                  Talent Pool
-                </Link>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link 
-                href="/login" 
-                className="px-4 py-2 text-white/80 hover:text-white transition-colors"
-              >
-                Login
-              </Link>
-              <Link 
-                href="/signup" 
-                className="px-6 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full hover:from-purple-600 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-purple-500/25"
-              >
-                Get Started
-              </Link>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 overflow-x-hidden">
+      {/* Animated background blobs */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute top-1/2 -right-40 w-80 h-80 bg-blue-600/20 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute bottom-0 left-1/3 w-72 h-72 bg-indigo-600/15 rounded-full blur-3xl animate-pulse delay-2000" />
+      </div>
+
+      {/* NAVBAR */}
+      <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${scrollY > 50 ? 'bg-slate-900/80 backdrop-blur-xl border-b border-white/10 shadow-2xl' : 'bg-transparent'}`}>
+        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="text-2xl font-black text-white tracking-tight">
+            TRAIN<span className="text-purple-400">ET</span>
+          </Link>
+          <div className="hidden md:flex items-center space-x-8">
+            <a href="#courses" className="text-white/70 hover:text-white transition-colors text-sm font-medium">Courses</a>
+            <a href="#alumni" className="text-white/70 hover:text-white transition-colors text-sm font-medium">Alumni</a>
+            <Link href="/talent-pool" className="text-white/70 hover:text-white transition-colors text-sm font-medium">Talent Pool</Link>
+            <a href="#stats" className="text-white/70 hover:text-white transition-colors text-sm font-medium">Stats</a>
+            <button onClick={scrollToContact} className="text-white/70 hover:text-white transition-colors text-sm font-medium">Contact</button>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Link href="/login" className="px-4 py-2 text-white/80 hover:text-white text-sm transition-colors">Login</Link>
+            <Link href="/signup" className="px-5 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full text-sm font-semibold hover:from-purple-600 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-purple-500/30 hover:scale-105">
+              Get Started
+            </Link>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6">
+      {/* HERO */}
+      <section className="relative pt-32 pb-24 px-6">
         <div className="container mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className={`transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              <h1 className="text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
-                Next-Generation 
-                <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent"> AI-Powered </span>
-                Learning & Career Development
-              </h1>
-              <p className="text-xl text-white/80 mb-8 leading-relaxed">
-                Experience AI-powered learning with real-world projects, mentorship networks, 
-                and career opportunities. Get auto-graded assignments, QR-verified certificates, 
-                and AI-matched job opportunities.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link 
-                  href="#courses"
-                  className="px-8 py-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full hover:from-purple-600 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-purple-500/25 text-center font-semibold"
-                >
-                  Explore Courses
-                </Link>
-                <Link 
-                  href="/signup"
-                  className="px-8 py-4 border-2 border-white/30 text-white rounded-full hover:bg-white/10 transition-all duration-300 text-center font-semibold"
-                >
-                  Join as Student
-                </Link>
-              </div>
+          <div className={`text-center max-w-4xl mx-auto transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20 text-white/80 text-sm mb-8">
+              <SparklesIcon className="w-4 h-4 text-purple-400" />
+              AI-Powered Learning Platform
             </div>
-            
-            <div className={`relative transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-              <div className="relative">
-                <div className="w-full h-96 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-3xl backdrop-blur-sm border border-white/20 p-8">
-                  <div className="space-y-4">
-                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full flex items-center justify-center">
-                          <SparklesIcon className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <div className="text-white font-semibold">AI Grading</div>
-                          <div className="text-white/60 text-sm">Instant feedback</div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full flex items-center justify-center">
-                          <UsersIcon className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <div className="text-white font-semibold">50K+ Learners</div>
-                          <div className="text-white/60 text-sm">Active community</div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 hover:bg-white/20 transition-all duration-300">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full flex items-center justify-center">
-                          <BriefcaseIcon className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <div className="text-white font-semibold">Skill Matching</div>
-                          <div className="text-white/60 text-sm">AI-powered jobs</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Floating elements */}
-                <div className="absolute -top-4 -right-4 w-20 h-20 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full opacity-20 animate-pulse"></div>
-                <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full opacity-20 animate-pulse delay-1000"></div>
-              </div>
+            <h1 className="text-5xl lg:text-7xl font-black text-white mb-6 leading-tight">
+              Next-Gen
+              <span className="block bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+                AI Learning
+              </span>
+              Ecosystem
+            </h1>
+            <p className="text-xl text-white/70 mb-10 leading-relaxed max-w-2xl mx-auto">
+              Auto-graded assignments, QR-verified certificates, alumni mentorship, and AI-matched career opportunities — all in one platform.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/signup" className="group px-8 py-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full font-bold text-lg hover:from-purple-600 hover:to-blue-600 transition-all duration-300 shadow-xl hover:shadow-purple-500/40 hover:scale-105 flex items-center justify-center gap-2">
+                Start Learning Free <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <a href="#courses" className="px-8 py-4 border-2 border-white/30 text-white rounded-full font-bold text-lg hover:bg-white/10 hover:border-white/50 transition-all duration-300 text-center">
+                Explore Courses
+              </a>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Platform Features */}
-      <section className="py-20 px-6 bg-white/5 backdrop-blur-sm">
-        <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-white mb-4">What Makes TRAINET Different</h2>
-            <p className="text-xl text-white/80">Advanced AI-powered features that transform learning</p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                icon: <CpuChipIcon className="w-8 h-8" />,
-                title: "AI Auto-Grading & Plagiarism Detection",
-                description: "Instant feedback with advanced AI that detects plagiarism and provides detailed grading"
-              },
-              {
-                icon: <BeakerIcon className="w-8 h-8" />,
-                title: "Work & Practice (Real-world tasks)",
-                description: "Hands-on projects that mirror real industry challenges and build practical skills"
-              },
-              {
-                icon: <QrCodeIcon className="w-8 h-8" />,
-                title: "QR-Based Certificate Verification",
-                description: "Blockchain-secured certificates with QR codes for instant verification by employers"
-              },
-              {
-                icon: <UsersIcon className="w-8 h-8" />,
-                title: "Alumni Mentorship Network",
-                description: "Connect with successful alumni for career guidance and industry insights"
-              },
-              {
-                icon: <BriefcaseIcon className="w-8 h-8" />,
-                title: "AI Talent Pool for Recruiters",
-                description: "Smart matching system that connects skilled graduates with relevant job opportunities"
-              },
-              {
-                icon: <AcademicCapIcon className="w-8 h-8" />,
-                title: "Live Sessions & Course Learning",
-                description: "Interactive live classes with recorded sessions and comprehensive course materials"
-              }
-            ].map((feature, index) => (
-              <div 
-                key={index}
-                className="group bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all duration-300 hover:transform hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/20"
-              >
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform duration-300">
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-semibold text-white mb-3">{feature.title}</h3>
-                <p className="text-white/70">{feature.description}</p>
+          {/* Floating stats */}
+          <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mt-20 max-w-3xl mx-auto transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+            {statItems.map((s, i) => (
+              <div key={i} className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 text-center hover:bg-white/15 transition-all hover:scale-105">
+                <p className="text-3xl font-black text-white">{s.value}</p>
+                <p className="text-white/60 text-xs mt-1">{s.label}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* User Roles Section */}
-      <section className="py-20 px-6">
+      {/* FEATURES — clickable cards */}
+      <section className="py-24 px-6 relative">
         <div className="container mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-white mb-4">Built for Everyone in the Ecosystem</h2>
-            <p className="text-xl text-white/80">Comprehensive platform serving all stakeholders</p>
+            <h2 className="text-4xl font-black text-white mb-4">What Makes TRAINET Different</h2>
+            <p className="text-white/60 text-lg">Click any feature to learn more</p>
           </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-            {[
-              {
-                role: "Student",
-                icon: <AcademicCapIcon className="w-8 h-8" />,
-                description: "Learn, practice, earn certificates",
-                color: "from-blue-500 to-cyan-500"
-              },
-              {
-                role: "Trainer",
-                icon: <BeakerIcon className="w-8 h-8" />,
-                description: "Create courses, assign tasks, evaluate",
-                color: "from-purple-500 to-pink-500"
-              },
-              {
-                role: "Alumni",
-                icon: <UsersIcon className="w-8 h-8" />,
-                description: "Mentor students and guide careers",
-                color: "from-green-500 to-emerald-500"
-              },
-              {
-                role: "Recruiter",
-                icon: <BriefcaseIcon className="w-8 h-8" />,
-                description: "Find talent using AI matching",
-                color: "from-orange-500 to-red-500"
-              },
-              {
-                role: "Admin",
-                icon: <ChartBarIcon className="w-8 h-8" />,
-                description: "Manage system & analytics",
-                color: "from-indigo-500 to-purple-500"
-              }
-            ].map((user, index) => (
-              <div 
-                key={index}
-                className="group bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all duration-300 hover:transform hover:-translate-y-2 text-center"
-              >
-                <div className={`w-16 h-16 bg-gradient-to-r ${user.color} rounded-2xl flex items-center justify-center text-white mb-4 mx-auto group-hover:scale-110 transition-transform duration-300`}>
-                  {user.icon}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map((f, i) => (
+              <Link key={i} href={f.href}
+                className="group relative bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-white/30 hover:bg-white/10 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl cursor-pointer overflow-hidden">
+                <div className={`absolute inset-0 bg-gradient-to-br ${f.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
+                <div className={`w-14 h-14 bg-gradient-to-r ${f.color} rounded-2xl flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
+                  {f.icon}
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-2">{user.role}</h3>
-                <p className="text-white/70 text-sm">{user.description}</p>
-              </div>
+                <h3 className="text-lg font-bold text-white mb-2 group-hover:text-purple-300 transition-colors">{f.title}</h3>
+                <p className="text-white/60 text-sm leading-relaxed">{f.desc}</p>
+                <div className="flex items-center gap-1 mt-4 text-purple-400 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                  Learn more <ArrowRightIcon className="w-3 h-3" />
+                </div>
+              </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Workflow Section */}
-      <section className="py-20 px-6 bg-white/5 backdrop-blur-sm">
+      {/* FEATURED COURSES */}
+      <section id="courses" className="py-24 px-6 bg-white/3">
         <div className="container mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-white mb-4">Your Learning Journey</h2>
-            <p className="text-xl text-white/80">From learning to career success in 5 simple steps</p>
+            <h2 className="text-4xl font-black text-white mb-4">Featured Course Offerings</h2>
+            <p className="text-white/60">Currently open for enrollment via QR</p>
           </div>
-          
-          <div className="flex flex-col lg:flex-row items-center justify-between space-y-8 lg:space-y-0 lg:space-x-4">
-            {[
-              { step: "1", title: "Learn Courses", description: "Access comprehensive courses with interactive content" },
-              { step: "2", title: "Complete Assignments", description: "Work on real-world projects and practical tasks" },
-              { step: "3", title: "AI Grading + Feedback", description: "Get instant AI-powered evaluation and improvement tips" },
-              { step: "4", title: "Get QR Certificate", description: "Receive blockchain-verified certificates with QR codes" },
-              { step: "5", title: "Get Matched with Recruiters", description: "AI connects you with relevant job opportunities" }
-            ].map((item, index) => (
-              <div key={index} className="flex flex-col items-center text-center group">
-                <div className="relative">
-                  <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-4 group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                    {item.step}
+          {dataLoading ? (
+            <div className="grid md:grid-cols-3 gap-6">{[1,2,3].map(i => <div key={i} className="bg-white/5 rounded-2xl h-48 animate-pulse" />)}</div>
+          ) : offerings.length > 0 ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {offerings.map((o, i) => {
+                const colors = ['from-purple-500 to-pink-500','from-blue-500 to-cyan-500','from-green-500 to-emerald-500','from-orange-500 to-red-500','from-indigo-500 to-purple-500','from-yellow-500 to-orange-500'];
+                return (
+                  <div key={o.id} className="group bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 overflow-hidden hover:border-white/30 hover:-translate-y-2 hover:shadow-2xl transition-all duration-300">
+                    <div className={`h-28 bg-gradient-to-r ${colors[i % colors.length]} flex items-center justify-center`}>
+                      <AcademicCapIcon className="w-10 h-10 text-white/80" />
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-bold text-white mb-1 group-hover:text-purple-300 transition-colors">{o.courses?.title}</h3>
+                      <p className="text-white/50 text-sm line-clamp-2 mb-3">{o.courses?.description}</p>
+                      {o.profiles && <p className="text-white/40 text-xs">by {o.profiles.first_name} {o.profiles.last_name}</p>}
+                    </div>
                   </div>
-                  {index < 4 && (
-                    <ArrowRightIcon className="hidden lg:block absolute top-1/2 -right-12 w-8 h-8 text-white/40 transform -translate-y-1/2" />
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-white/40">No open offerings at the moment</div>
+          )}
+          <div className="text-center mt-10">
+            <Link href="/signup" className="px-8 py-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full font-bold hover:from-purple-600 hover:to-blue-600 transition-all hover:scale-105 shadow-lg">
+              Enroll Now
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ALUMNI — clickable cards */}
+      <section id="alumni" className="py-24 px-6">
+        <div className="container mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-black text-white mb-4">Our Alumni Network</h2>
+            <p className="text-white/60">Click a profile to connect and request mentorship</p>
+          </div>
+          {alumni.length > 0 ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {alumni.map(a => (
+                <Link key={a.id} href={`/alumni/${a.id}`}
+                  className="group bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-purple-500/50 hover:bg-white/10 hover:-translate-y-2 hover:shadow-2xl transition-all duration-300">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                      {a.profiles?.first_name?.[0]}{a.profiles?.last_name?.[0]}
+                    </div>
+                    <div>
+                      <p className="font-bold text-white group-hover:text-purple-300 transition-colors">{a.profiles?.first_name} {a.profiles?.last_name}</p>
+                      {a.headline && <p className="text-white/50 text-xs">{a.headline}</p>}
+                    </div>
+                  </div>
+                  {a.skills && (
+                    <div className="flex flex-wrap gap-1">
+                      {a.skills.split(',').slice(0, 3).map((s: string, i: number) => (
+                        <span key={i} className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded-full border border-purple-500/30">{s.trim()}</span>
+                      ))}
+                    </div>
                   )}
-                </div>
-                <h3 className="text-lg font-semibold text-white mb-2">{item.title}</h3>
-                <p className="text-white/70 text-sm max-w-32">{item.description}</p>
-              </div>
-            ))}
-          </div>
+                  <div className="flex items-center gap-1 mt-3 text-purple-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                    View profile & request mentorship <ArrowRightIcon className="w-3 h-3" />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-white/40">Alumni profiles coming soon</div>
+          )}
         </div>
       </section>
 
-      {/* AI Section */}
-      <section className="py-20 px-6 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20"></div>
-        <div className="container mx-auto relative">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-white mb-4">Powered by Artificial Intelligence</h2>
-            <p className="text-xl text-white/80">Advanced AI capabilities that enhance every aspect of learning</p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                title: "Personalized Learning Paths",
-                description: "AI analyzes your progress and creates customized learning experiences",
-                icon: <RocketLaunchIcon className="w-6 h-6" />
-              },
-              {
-                title: "Auto Grading System",
-                description: "Instant, accurate grading with detailed feedback and improvement suggestions",
-                icon: <SparklesIcon className="w-6 h-6" />
-              },
-              {
-                title: "Plagiarism Detection",
-                description: "Advanced algorithms detect and prevent academic dishonesty",
-                icon: <ShieldCheckIcon className="w-6 h-6" />
-              },
-              {
-                title: "Skill Gap Analysis",
-                description: "Identify areas for improvement and get targeted recommendations",
-                icon: <ChartBarIcon className="w-6 h-6" />
-              },
-              {
-                title: "Talent Matching",
-                description: "Smart algorithms connect graduates with perfect job opportunities",
-                icon: <BriefcaseIcon className="w-6 h-6" />
-              },
-              {
-                title: "Predictive Analytics",
-                description: "Forecast learning outcomes and career success probability",
-                icon: <CpuChipIcon className="w-6 h-6" />
-              }
-            ].map((feature, index) => (
-              <div 
-                key={index}
-                className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all duration-300 hover:transform hover:-translate-y-2 group"
-              >
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-blue-400 rounded-xl flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform duration-300">
-                  {feature.icon}
-                </div>
-                <h3 className="text-lg font-semibold text-white mb-3">{feature.title}</h3>
-                <p className="text-white/70">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Sample Courses */}
-      <section className="py-20 px-6 bg-white/5 backdrop-blur-sm">
+      {/* ROLES — no admin */}
+      <section className="py-24 px-6 bg-white/3">
         <div className="container mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-white mb-4">Popular Course Categories</h2>
-            <p className="text-xl text-white/80">Explore trending skills and technologies</p>
+            <h2 className="text-4xl font-black text-white mb-4">Built for Everyone</h2>
+            <p className="text-white/60">Click your role to explore what TRAINET offers you</p>
           </div>
-          
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              {
-                title: "Web Development",
-                level: "Beginner to Advanced",
-                students: "12,500+",
-                rating: 4.8,
-                color: "from-blue-500 to-cyan-500"
-              },
-              {
-                title: "AI & Machine Learning",
-                level: "Intermediate",
-                students: "8,200+",
-                rating: 4.9,
-                color: "from-purple-500 to-pink-500"
-              },
-              {
-                title: "Data Science",
-                level: "Beginner to Advanced",
-                students: "15,300+",
-                rating: 4.7,
-                color: "from-green-500 to-emerald-500"
-              },
-              {
-                title: "UI/UX Design",
-                level: "Beginner",
-                students: "9,800+",
-                rating: 4.8,
-                color: "from-orange-500 to-red-500"
-              }
-            ].map((course, index) => (
-              <div 
-                key={index}
-                className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all duration-300 hover:transform hover:-translate-y-2 group cursor-pointer"
-              >
-                <div className={`w-full h-32 bg-gradient-to-r ${course.color} rounded-xl mb-4 flex items-center justify-center group-hover:scale-105 transition-transform duration-300`}>
-                  <AcademicCapIcon className="w-12 h-12 text-white" />
+            {roles.map((r, i) => (
+              <Link key={i} href={r.href}
+                className="group bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-white/30 hover:bg-white/10 hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 text-center">
+                <div className={`w-16 h-16 bg-gradient-to-r ${r.color} rounded-2xl flex items-center justify-center text-white mb-4 mx-auto group-hover:scale-110 transition-transform shadow-lg`}>
+                  {r.icon}
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">{course.title}</h3>
-                <p className="text-white/60 text-sm mb-3">{course.level}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/70 text-sm">{course.students} students</span>
-                  <div className="flex items-center space-x-1">
-                    <StarIcon className="w-4 h-4 text-yellow-400 fill-current" />
-                    <span className="text-white/70 text-sm">{course.rating}</span>
-                  </div>
+                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-purple-300 transition-colors">{r.role}</h3>
+                <p className="text-white/60 text-sm">{r.desc}</p>
+                <div className="flex items-center justify-center gap-1 mt-4 text-purple-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                  Explore <ArrowRightIcon className="w-3 h-3" />
                 </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* STATS */}
+      <section id="stats" className="py-24 px-6">
+        <div className="container mx-auto text-center">
+          <h2 className="text-4xl font-black text-white mb-16">Platform at a Glance</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto">
+            {statItems.map((s, i) => (
+              <div key={i} className="group">
+                <p className="text-5xl font-black bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform inline-block">{s.value}</p>
+                <p className="text-white/60 text-sm mt-2">{s.label}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Call to Action */}
-      <section className="py-20 px-6">
+      {/* CONTACT */}
+      <section ref={contactRef} id="contact" className="py-24 px-6 bg-white/3">
+        <div className="container mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-black text-white mb-4">Contact Us</h2>
+            <p className="text-white/60">We'd love to hear from you</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+            <a href="mailto:trainet8688@gmail.com"
+              className="group flex items-center gap-4 bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-purple-500/50 hover:bg-white/10 transition-all duration-300 hover:-translate-y-1">
+              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center shrink-0">
+                <EnvelopeIcon className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-white/50 text-xs mb-1">Email</p>
+                <p className="text-white font-semibold group-hover:text-purple-300 transition-colors">trainet8688@gmail.com</p>
+              </div>
+            </a>
+            <a href="https://wa.me/923055334284" target="_blank" rel="noopener noreferrer"
+              className="group flex items-center gap-4 bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 hover:border-green-500/50 hover:bg-white/10 transition-all duration-300 hover:-translate-y-1">
+              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shrink-0">
+                <PhoneIcon className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-white/50 text-xs mb-1">Phone / WhatsApp</p>
+                <p className="text-white font-semibold group-hover:text-green-300 transition-colors">03055334284</p>
+              </div>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-24 px-6">
         <div className="container mx-auto text-center">
-          <h2 className="text-4xl font-bold text-white mb-6">Ready to Transform Your Career?</h2>
-          <p className="text-xl text-white/80 mb-8 max-w-2xl mx-auto">
-            Join thousands of learners who are already building their future with AI-powered education
+          <h2 className="text-4xl font-black text-white mb-6">Ready to Transform Your Career?</h2>
+          <p className="text-white/60 text-lg mb-10 max-w-xl mx-auto">
+            Join {(stats.total_users || 0).toLocaleString() || 'thousands of'} learners already building their future
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link 
-              href="/signup"
-              className="px-8 py-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full hover:from-purple-600 hover:to-blue-600 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-purple-500/25 font-semibold text-lg"
-            >
+            <Link href="/signup" className="px-8 py-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full font-bold text-lg hover:from-purple-600 hover:to-blue-600 transition-all hover:scale-105 shadow-xl">
               Join as Student
             </Link>
-            <Link 
-              href="#courses"
-              className="px-8 py-4 border-2 border-white/30 text-white rounded-full hover:bg-white/10 transition-all duration-300 font-semibold text-lg"
-            >
+            <a href="#courses" className="px-8 py-4 border-2 border-white/30 text-white rounded-full font-bold text-lg hover:bg-white/10 hover:border-white/50 transition-all">
               Explore Courses
-            </Link>
+            </a>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-16 px-6 bg-black/20 backdrop-blur-sm border-t border-white/10">
+      {/* FOOTER */}
+      <footer className="py-16 px-6 bg-black/30 backdrop-blur-sm border-t border-white/10">
         <div className="container mx-auto">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
             <div>
-              <h3 className="text-xl font-bold text-white mb-4">Platform</h3>
+              <h3 className="text-white font-bold mb-4">Platform</h3>
               <ul className="space-y-2">
-                <li><Link href="#courses" className="text-white/70 hover:text-white transition-colors">Courses</Link></li>
-                <li><Link href="#projects" className="text-white/70 hover:text-white transition-colors">Projects</Link></li>
-                <li><Link href="#certificates" className="text-white/70 hover:text-white transition-colors">Certificates</Link></li>
-                <li><Link href="#talent-pool" className="text-white/70 hover:text-white transition-colors">Talent Pool</Link></li>
+                <li><Link href="/student/courses/browse" className="text-white/50 hover:text-white transition-colors text-sm">Courses</Link></li>
+                <li><Link href="/student/certificates" className="text-white/50 hover:text-white transition-colors text-sm">Certificates</Link></li>
+                <li><Link href="/talent-pool" className="text-white/50 hover:text-white transition-colors text-sm">Talent Pool</Link></li>
+                <li><Link href="/alumni" className="text-white/50 hover:text-white transition-colors text-sm">Alumni</Link></li>
               </ul>
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white mb-4">Community</h3>
+              <h3 className="text-white font-bold mb-4">Community</h3>
               <ul className="space-y-2">
-                <li><Link href="#alumni" className="text-white/70 hover:text-white transition-colors">Alumni</Link></li>
-                <li><Link href="#mentorship" className="text-white/70 hover:text-white transition-colors">Mentorship</Link></li>
-                <li><Link href="#events" className="text-white/70 hover:text-white transition-colors">Events</Link></li>
-                <li><Link href="#forums" className="text-white/70 hover:text-white transition-colors">Forums</Link></li>
+                <li><Link href="/alumni" className="text-white/50 hover:text-white transition-colors text-sm">Alumni Network</Link></li>
+                <li><Link href="/mentorship" className="text-white/50 hover:text-white transition-colors text-sm">Mentorship</Link></li>
+                <li><Link href="/talent-pool" className="text-white/50 hover:text-white transition-colors text-sm">Recruiters</Link></li>
               </ul>
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white mb-4">Support</h3>
+              <h3 className="text-white font-bold mb-4">Support</h3>
               <ul className="space-y-2">
-                <li><Link href="#help" className="text-white/70 hover:text-white transition-colors">Help Center</Link></li>
-                <li><Link href="#contact" className="text-white/70 hover:text-white transition-colors">Contact</Link></li>
-                <li><Link href="#privacy" className="text-white/70 hover:text-white transition-colors">Privacy Policy</Link></li>
-                <li><Link href="#terms" className="text-white/70 hover:text-white transition-colors">Terms of Service</Link></li>
+                <li><Link href="/help" className="text-white/50 hover:text-white transition-colors text-sm">Help Center</Link></li>
+                <li><button onClick={scrollToContact} className="text-white/50 hover:text-white transition-colors text-sm">Contact</button></li>
+                <li><Link href="/privacy" className="text-white/50 hover:text-white transition-colors text-sm">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="text-white/50 hover:text-white transition-colors text-sm">Terms of Service</Link></li>
               </ul>
             </div>
             <div>
-              <h3 className="text-xl font-bold text-white mb-4">TRAINET</h3>
-              <p className="text-white/70 mb-4">
-                Next-generation AI-powered learning and career development platform.
-              </p>
-              <div className="flex space-x-4">
-                <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer">
-                  <span className="text-white text-sm">f</span>
-                </div>
-                <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer">
-                  <span className="text-white text-sm">t</span>
-                </div>
-                <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer">
-                  <span className="text-white text-sm">in</span>
-                </div>
-              </div>
+              <h3 className="text-white font-bold mb-4">TRAINET</h3>
+              <p className="text-white/50 text-sm mb-4">Next-generation AI-powered learning and career development platform.</p>
+              <Link href="/about" className="text-purple-400 hover:text-purple-300 text-sm transition-colors">About us →</Link>
             </div>
           </div>
-          <div className="border-t border-white/10 mt-12 pt-8 text-center">
-            <p className="text-white/60">© 2024 TRAINET. All rights reserved.</p>
+          <div className="border-t border-white/10 pt-8 text-center">
+            <p className="text-white/30 text-sm">© 2026 TRAINET. All rights reserved.</p>
           </div>
         </div>
       </footer>

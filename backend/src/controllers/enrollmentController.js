@@ -14,33 +14,11 @@ import * as enrollmentService from '../services/enrollmentService.js';
  */
 export const enrollInCourse = async (req, res, next) => {
   try {
-    const { courseId } = req.body;
-    const studentId = req.user.id;
-
-    // Validate required fields
-    if (!courseId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Course ID is required',
-        error: 'Validation Error',
-      });
-    }
-
-    // Verify user is a student
-    if (req.user.role !== 'student') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only students can enroll in courses',
-        error: 'Forbidden',
-      });
-    }
-
-    const enrollment = await enrollmentService.enrollStudent(studentId, courseId);
-
-    res.status(201).json({
-      success: true,
-      message: 'Successfully enrolled in course',
-      data: enrollment,
+    // SRDS: direct enrollment is disabled — must use QR token
+    return res.status(410).json({
+      success: false,
+      message: 'Direct enrollment is disabled. Students must enroll via QR code. Use POST /api/enroll/qr with a valid token.',
+      error: 'Gone',
     });
   } catch (error) {
     next(error);

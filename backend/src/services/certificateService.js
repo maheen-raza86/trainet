@@ -14,6 +14,7 @@ import { randomUUID } from 'crypto';
 import supabase from '../config/supabaseClient.js';
 import logger from '../utils/logger.js';
 import { BadRequestError, NotFoundError, ForbiddenError, ConflictError } from '../utils/errors.js';
+import { createNotification } from './notificationService.js';
 
 // Completion threshold: student must have submitted ≥ this % of assignments
 const COMPLETION_THRESHOLD = 60;
@@ -212,6 +213,16 @@ export const issueCertificate = async (studentId, offeringId, force = false) => 
   });
 
   logger.info(`Certificate issued: ${certificateUuid} for student ${studentId}`);
+
+  // Notify student (non-blocking)
+  try {
+    createNotification(studentId, {
+      title: 'Certificate Issued!',
+      message: `Congratulations! Your certificate for "${offering.courses?.title}" has been issued.`,
+      type: 'certificate',
+    });
+  } catch { /* non-blocking */ }
+
   return cert;
 };
 

@@ -77,9 +77,26 @@ export const verifyCertificate = async (req, res, next) => {
 };
 
 /**
- * Check eligibility for a certificate (student self-check).
- * GET /api/certificates/eligibility/:offeringId
+ * Trainer issues certificate for a specific student.
+ * POST /api/certificates/trainer/issue
+ * Body: { studentId, offeringId }
  */
+export const trainerIssueCertificate = async (req, res, next) => {
+  try {
+    const { studentId, offeringId } = req.body;
+    if (!studentId || !offeringId) throw new BadRequestError('studentId and offeringId are required');
+
+    const cert = await certificateService.issueCertificate(studentId, offeringId);
+
+    res.status(201).json({
+      success: true,
+      message: 'Certificate issued successfully',
+      data: cert,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 export const checkEligibility = async (req, res, next) => {
   try {
     const studentId = req.user.id;

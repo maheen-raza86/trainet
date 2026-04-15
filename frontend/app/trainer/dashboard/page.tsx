@@ -118,6 +118,10 @@ export default function TrainerDashboard() {
 
   // Stats
   const pendingSubmissionsCount = submissions.filter(s => s.grade === null).length;
+  const gradedSubmissionsCount = submissions.filter(s => s.grade !== null).length;
+  const avgProgress = totalStudents > 0
+    ? Math.round(submissions.filter(s => s.grade !== null).reduce((sum, s) => sum + (s.grade || 0), 0) / Math.max(1, gradedSubmissionsCount))
+    : 0;
 
   const stats = [
     { label: 'Course Offerings', value: offerings.length, icon: AcademicCapIcon, color: 'from-blue-500 to-cyan-500', bg: 'from-blue-500/10 to-cyan-500/10', href: '/trainer/courses' },
@@ -289,11 +293,29 @@ export default function TrainerDashboard() {
               <SparklesIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-800">AI Teaching Assistant</h3>
-              <p className="text-sm text-gray-600">Insights and recommendations for your courses</p>
+              <h3 className="text-lg font-bold text-gray-800">Teaching Journey</h3>
+              <p className="text-sm text-gray-600">Your impact as a trainer</p>
             </div>
           </div>
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-4 gap-4">
+            <div className="bg-white/40 rounded-xl p-4 border border-white/30 text-center">
+              <p className="text-2xl font-bold text-gray-800">{offerings.filter(o => o.status === 'open').length}</p>
+              <p className="text-xs text-gray-500 mt-1">Active Courses</p>
+            </div>
+            <div className="bg-white/40 rounded-xl p-4 border border-white/30 text-center">
+              <p className="text-2xl font-bold text-gray-800">{totalStudents}</p>
+              <p className="text-xs text-gray-500 mt-1">Students Taught</p>
+            </div>
+            <div className="bg-white/40 rounded-xl p-4 border border-white/30 text-center">
+              <p className="text-2xl font-bold text-gray-800">{submissions.length}</p>
+              <p className="text-xs text-gray-500 mt-1">Total Submissions</p>
+            </div>
+            <div className="bg-white/40 rounded-xl p-4 border border-white/30 text-center">
+              <p className="text-2xl font-bold text-gray-800">{avgProgress > 0 ? `${avgProgress}%` : '—'}</p>
+              <p className="text-xs text-gray-500 mt-1">Avg Student Grade</p>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4 mt-4">
             <div className="bg-white/40 rounded-xl p-4 border border-white/30">
               <h4 className="font-medium text-gray-800 mb-2">Student Engagement</h4>
               <p className="text-sm text-gray-600">{totalStudents > 0 ? `${totalStudents} student(s) enrolled across your offerings` : 'No students enrolled yet'}</p>

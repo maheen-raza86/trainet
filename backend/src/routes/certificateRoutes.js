@@ -13,6 +13,9 @@ const router = express.Router();
 // Issue a certificate (student only)
 router.post('/issue', verifyToken, authorizeRoles('student'), certificateController.issueCertificate);
 
+// Trainer issues certificate for a student
+router.post('/trainer/issue', verifyToken, authorizeRoles('trainer'), certificateController.trainerIssueCertificate);
+
 // Get my certificates (student only)
 router.get('/my', verifyToken, authorizeRoles('student'), certificateController.getMyCertificates);
 

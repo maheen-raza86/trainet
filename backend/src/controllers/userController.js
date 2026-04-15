@@ -143,6 +143,7 @@ export const enrollViaQRPost = async (req, res, next) => {
   try {
     const { token } = req.body;
     const studentId = req.user.id;
+    const studentRole = req.user.role;
 
     if (!token) {
       return res.status(400).json({
@@ -152,7 +153,7 @@ export const enrollViaQRPost = async (req, res, next) => {
       });
     }
 
-    const result = await userService.validateAndEnrollViaQR(studentId, token);
+    const result = await userService.validateAndEnrollViaQR(studentId, token, studentRole);
 
     res.status(201).json({
       success: true,

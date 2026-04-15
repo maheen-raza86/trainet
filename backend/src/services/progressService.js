@@ -1,133 +1,129 @@
 /**
  * Progress Service
- * SRDS: "System will allow learners to monitor their progress"
- * Computes per-offering progress for a student.
+ * Centralized progress calculation for all roles
+ * Formula: (submitted/total * 70) + (avg_grade/100 * 30)
  */
 
 import supabase from '../config/supabaseClient.js';
 import logger from '../utils/logger.js';
-import { BadRequestError, NotFoundError, ForbiddenError } from '../utils/errors.js';
+import { BadRequestError } from '../utils/errors.js';
 
 /**
- * Get progress summary for a student in a specific course offering.
- *
- * @param {string} studentId   - Student user ID
- * @param {string} offeringId  - Course offering ID
- * @returns {Promise<Object>}  Progress summary
+ * Calculate course progress for a student in a specific offering
+ * @param {string} studentId
+ * @param {string} offeringId
+ * @returns {{ progress, total_assignments, submitted_assignments, average_grade }}
  */
-export const getStudentProgress = async (studentId, offeringId) => {
-  // 1. Verify enrollment
-  const { data: enrollment, error: enrollError } = await supabase
-    .from('enrollments')
-    .select('id, progress, enrolled_at')
-    .eq('student_id', studentId)
-    .eq('offering_id', offeringId)
-    .single();
+export const calculateCourseProgress = async (studentId, offeringId) => {
+  try {
+    // Fetch all assignments for this offering
+    const { data: assignments } = await supabase
+      .from('assignments')
+      .select('id')
+      .eq('course_offering_id', offeringId);
 
-  if (enrollError || !enrollment) {
-    throw new ForbiddenError('You are not enrolled in this course offering');
-  }
+    const total = (assignments || []).length;
 
-  // 2. Fetch all assignments for the offering
-  const { data: assignments, error: assignError } = await supabase
-    .from('assignments')
-    .select('id, title, due_date')
-    .eq('course_offering_id', offeringId)
-    .order('due_date', { ascending: true });
+    if (total === 0) {
+      return { progress: 0, total_assignments: 0, submitted_assignments: 0, average_grade: null };
+    }
 
-  if (assignError) {
-    logger.error('Error fetching assignments for progress:', assignError);
-    throw new BadRequestError('Failed to fetch progress data');
-  }
+    const assignmentIds = assignments.map(a => a.id);
 
-  const totalAssignments = (assignments || []).length;
-
-  // 3. Fetch student's submissions for this offering's assignments
-  let submissions = [];
-  if (totalAssignments > 0) {
-    const assignmentIds = assignments.map((a) => a.id);
-    const { data: subs, error: subError } = await supabase
+    // Fetch student submissions for these assignments
+    const { data: submissions } = await supabase
       .from('submissions')
-      .select('id, assignment_id, status, grade, ai_score, submitted_at, graded_at')
+      .select('id, assignment_id, grade, ai_score')
       .eq('student_id', studentId)
       .in('assignment_id', assignmentIds);
 
-    if (subError) {
-      logger.error('Error fetching submissions for progress:', subError);
-      throw new BadRequestError('Failed to fetch progress data');
-    }
-    submissions = subs || [];
-  }
+    const submitted = (submissions || []).length;
 
-  // 4. Compute metrics
-  const completedSubmissions = submissions.length;
-  const gradedSubmissions = submissions.filter((s) => s.grade !== null);
+    // Average grade (trainer grade preferred, fallback to AI score)
+    const scores = (submissions || [])
+      .map(s => s.grade ?? s.ai_score)
+      .filter(v => v !== null && v !== undefined);
 
-  // Average score: prefer trainer grade, fall back to AI score
-  const scores = gradedSubmissions
-    .map((s) => s.grade ?? s.ai_score)
-    .filter((v) => v !== null && v !== undefined);
-
-  const averageScore =
-    scores.length > 0
-      ? Math.round(scores.reduce((sum, v) => sum + v, 0) / scores.length)
+    const avgGrade = scores.length > 0
+      ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
       : null;
 
-  // Completion percentage
-  const completionPct =
-    totalAssignments > 0
-      ? Math.round((completedSubmissions / totalAssignments) * 100)
-      : 0;
+    // Formula: (submitted/total * 70) + (avg_grade/100 * 30)
+    const submissionScore = (submitted / total) * 70;
+    const gradeScore = avgGrade !== null ? (avgGrade / 100) * 30 : 0;
+    const progress = Math.round(submissionScore + gradeScore);
 
-  // Determine status
-  let status = 'in_progress';
-  if (completionPct === 100 && gradedSubmissions.length === totalAssignments) {
-    status = 'completed';
-  } else if (completedSubmissions === 0) {
-    status = 'not_started';
-  }
-
-  // Last activity
-  const lastActivity =
-    submissions.length > 0
-      ? submissions.sort(
-          (a, b) => new Date(b.submitted_at) - new Date(a.submitted_at)
-        )[0].submitted_at
-      : enrollment.enrolled_at;
-
-  // Per-assignment breakdown
-  const assignmentBreakdown = (assignments || []).map((a) => {
-    const sub = submissions.find((s) => s.assignment_id === a.id);
     return {
-      id: a.id,
-      title: a.title,
-      due_date: a.due_date,
-      submitted: !!sub,
-      status: sub ? sub.status : 'pending',
-      grade: sub?.grade ?? null,
-      ai_score: sub?.ai_score ?? null,
+      progress,
+      total_assignments: total,
+      submitted_assignments: submitted,
+      average_grade: avgGrade,
     };
-  });
+  } catch (err) {
+    logger.error('Error calculating course progress:', err);
+    return { progress: 0, total_assignments: 0, submitted_assignments: 0, average_grade: null };
+  }
+};
 
-  // 5. Update enrollment progress field to keep it in sync
-  const newProgress = completionPct;
-  if (enrollment.progress !== newProgress) {
+/**
+ * Get progress for all students in an offering (trainer/admin use)
+ * @param {string} offeringId
+ * @returns {Array} students with progress data
+ */
+export const getOfferingProgress = async (offeringId) => {
+  try {
+    const { data: enrollments, error } = await supabase
+      .from('enrollments')
+      .select(`
+        id, student_id, progress,
+        profiles!enrollments_student_id_fkey(id, first_name, last_name, email, role)
+      `)
+      .eq('offering_id', offeringId);
+
+    if (error) throw new BadRequestError('Failed to fetch enrollments');
+
+    // Filter to students only — defensive check against data integrity issues
+    const studentEnrollments = (enrollments || []).filter(
+      e => e.profiles?.role === 'student'
+    );
+
+    const results = await Promise.all(studentEnrollments.map(async (e) => {
+      const calc = await calculateCourseProgress(e.student_id, offeringId);
+      return {
+        enrollment_id: e.id,
+        student_id: e.student_id,
+        student: e.profiles,
+        ...calc,
+      };
+    }));
+
+    return results;
+  } catch (err) {
+    if (err instanceof BadRequestError) throw err;
+    logger.error('Error fetching offering progress:', err);
+    throw new BadRequestError('Failed to fetch progress');
+  }
+};
+
+/**
+ * Sync calculated progress back to enrollments table
+ * @param {string} studentId
+ * @param {string} offeringId
+ */
+export const syncProgressToEnrollment = async (studentId, offeringId) => {
+  try {
+    const { progress } = await calculateCourseProgress(studentId, offeringId);
     await supabase
       .from('enrollments')
-      .update({ progress: newProgress })
-      .eq('id', enrollment.id);
+      .update({ progress })
+      .eq('student_id', studentId)
+      .eq('offering_id', offeringId);
+  } catch (err) {
+    logger.error('Error syncing progress:', err);
   }
-
-  return {
-    offeringId,
-    enrolledAt: enrollment.enrolled_at,
-    totalAssignments,
-    completedSubmissions,
-    gradedSubmissions: gradedSubmissions.length,
-    completionPercentage: completionPct,
-    averageScore,
-    status,
-    lastActivity,
-    assignments: assignmentBreakdown,
-  };
 };
+
+/**
+ * Alias for backward compatibility with progressController
+ */
+export const getStudentProgress = calculateCourseProgress;

@@ -6,6 +6,7 @@
 import supabase from '../config/supabaseClient.js';
 import logger from '../utils/logger.js';
 import { BadRequestError, NotFoundError, UnauthorizedError } from '../utils/errors.js';
+import { createNotification } from './notificationService.js';
 
 /**
  * Create assignment for a course offering
@@ -18,7 +19,7 @@ import { BadRequestError, NotFoundError, UnauthorizedError } from '../utils/erro
  * @returns {Promise<Object>} Created assignment
  */
 export const createAssignment = async (assignmentData) => {
-  const { title, description, courseOfferingId, trainerId, dueDate } = assignmentData;
+  const { title, description, courseOfferingId, trainerId, dueDate, fileUrl, fileName, fileSize } = assignmentData;
 
   try {
     // Verify course offering exists and trainer owns it
@@ -32,23 +33,26 @@ export const createAssignment = async (assignmentData) => {
       throw new NotFoundError('Course offering not found');
     }
 
-    // Verify trainer owns the offering
     if (offering.trainer_id !== trainerId) {
       throw new UnauthorizedError('You can only create assignments for your own course offerings');
     }
 
     // Create assignment
+    const insertData = {
+      course_offering_id: courseOfferingId,
+      trainer_id: trainerId,
+      title,
+      description,
+      due_date: dueDate,
+    };
+
+    if (fileUrl) insertData.file_url = fileUrl;
+    if (fileName) insertData.file_name = fileName;
+    if (fileSize) insertData.file_size = fileSize;
+
     const { data, error } = await supabase
       .from('assignments')
-      .insert([
-        {
-          course_offering_id: courseOfferingId,
-          trainer_id: trainerId,
-          title,
-          description,
-          due_date: dueDate,
-        },
-      ])
+      .insert([insertData])
       .select()
       .single();
 
@@ -58,6 +62,21 @@ export const createAssignment = async (assignmentData) => {
     }
 
     logger.info(`Assignment created: ${title} for offering ${courseOfferingId} by trainer ${trainerId}`);
+
+    // Notify enrolled students (non-blocking)
+    try {
+      const { data: enrollments } = await supabase
+        .from('enrollments')
+        .select('student_id')
+        .eq('offering_id', courseOfferingId);
+      for (const e of (enrollments || [])) {
+        createNotification(e.student_id, {
+          title: 'New Assignment',
+          message: `New assignment "${title}" has been posted`,
+          type: 'assignment',
+        });
+      }
+    } catch { /* non-blocking */ }
 
     return data;
   } catch (error) {

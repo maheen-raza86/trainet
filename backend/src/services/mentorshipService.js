@@ -6,6 +6,7 @@
 import supabase from '../config/supabaseClient.js';
 import logger from '../utils/logger.js';
 import { BadRequestError, NotFoundError, ForbiddenError, ConflictError } from '../utils/errors.js';
+import { createNotification } from './notificationService.js';
 
 export const sendRequest = async (studentId, alumniProfileId, message) => {
   try {
@@ -166,6 +167,20 @@ export const updateRequestStatus = async (requestId, alumniUserId, status, sched
     if (error) {
       logger.error('Error updating request status:', error);
       throw new BadRequestError('Failed to update request');
+    }
+
+    // Notify student when request is accepted/rejected (non-blocking)
+    if (status === 'accepted' || status === 'rejected') {
+      try {
+        const req = data;
+        createNotification(req.profiles?.id || req.student_id, {
+          title: status === 'accepted' ? 'Mentorship Request Accepted' : 'Mentorship Request Rejected',
+          message: status === 'accepted'
+            ? 'Your mentorship request has been accepted! You can now chat with your mentor.'
+            : 'Your mentorship request was not accepted at this time.',
+          type: 'mentorship',
+        });
+      } catch { /* non-blocking */ }
     }
 
     return data;
