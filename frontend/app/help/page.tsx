@@ -1,37 +1,58 @@
 'use client';
 import Link from 'next/link';
-import { ArrowLeftIcon, QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
+import { QuestionMarkCircleIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import PublicLayout, { PageHero, WaveDivider, AngleDivider } from '@/components/public/PublicLayout';
 
-const faqs = [
-  { q: 'How do I enroll in a course?', a: 'Scan the QR code provided by your trainer or use the enrollment link. You must be logged in as a student.' },
-  { q: 'How does AI grading work?', a: 'The system detects your assignment type (coding/quiz/text) and applies rule-based checks. You receive a score and detailed feedback instantly.' },
-  { q: 'How do I get a certificate?', a: 'Complete at least 60% of course assignments. Certificates are auto-issued and contain a QR code for verification.' },
-  { q: 'How do I request mentorship?', a: 'Browse the Alumni Network, click a profile, and send a mentorship request with your goals.' },
-  { q: 'How does the Talent Pool work?', a: 'Recruiters search candidates by skills. Your profile is scored based on grades, projects, and certifications.' },
-  { q: 'What if my submission is flagged for plagiarism?', a: 'Submissions with >70% similarity to others are flagged and graded 0. Review your work and resubmit original content.' },
+const FAQS = [
+  { q:'How do I enroll in a course?', a:'Scan the QR code provided by your trainer or use the enrollment link. You must be logged in as a student.' },
+  { q:'How does AI grading work?', a:'The system detects your assignment type (coding/quiz/text) and applies rule-based checks. You receive a score and detailed feedback instantly.' },
+  { q:'How do I get a certificate?', a:'Complete at least 60% of course assignments. Certificates are auto-issued and contain a QR code for verification.' },
+  { q:'How do I request mentorship?', a:'Browse the Alumni Network, click a profile, and send a mentorship request with your goals.' },
+  { q:'How does the Talent Pool work?', a:'Recruiters search candidates by skills. Your profile is scored based on grades, projects, and certifications.' },
+  { q:'What if my submission is flagged for plagiarism?', a:'Submissions with >70% similarity to others are flagged and graded 0. Review your work and resubmit original content.' },
 ];
 
 export default function HelpPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900">
-      <div className="container mx-auto px-6 py-12 max-w-3xl">
-        <Link href="/" className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-8 text-sm"><ArrowLeftIcon className="w-4 h-4" /> Back</Link>
-        <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mb-6"><QuestionMarkCircleIcon className="w-8 h-8 text-white" /></div>
-        <h1 className="text-4xl font-black text-white mb-4">Help Center</h1>
-        <p className="text-white/60 mb-12">Frequently asked questions about TRAINET</p>
-        <div className="space-y-4">
-          {faqs.map((f, i) => (
-            <div key={i} className="bg-white/5 rounded-2xl p-5 border border-white/10">
-              <h3 className="text-white font-bold mb-2">{f.q}</h3>
-              <p className="text-white/60 text-sm">{f.a}</p>
-            </div>
-          ))}
+    <PublicLayout>
+      <PageHero
+        icon={<QuestionMarkCircleIcon className="w-8 h-8"/>}
+        title="Help Center"
+        subtitle="Frequently asked questions about TRAINET"
+        accent="from-purple-500 to-blue-500"
+      />
+
+      <AngleDivider fromDark={true} toDark={false}/>
+
+      {/* FAQs — light */}
+      <section className="py-20 px-6" style={{background:'#f6f3ef'}}>
+        <div className="container mx-auto max-w-3xl">
+          <div className="space-y-4 stagger-children">
+            {FAQS.map((f,i)=>(
+              <div key={i} className="reveal bg-white rounded-2xl p-5 border border-slate-200 hover:border-purple-200 hover:shadow-md transition-all"
+                style={{boxShadow:'0 2px 8px rgba(0,0,0,0.04)'}}>
+                <h3 className="text-slate-900 font-bold mb-2">{f.q}</h3>
+                <p className="text-slate-500 text-sm leading-relaxed">{f.a}</p>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="mt-12 bg-white/5 rounded-2xl p-6 border border-white/10 text-center">
-          <p className="text-white/60 mb-3">Still need help?</p>
-          <a href="mailto:trainet8688@gmail.com" className="text-purple-400 hover:text-purple-300 font-semibold transition-colors">trainet8688@gmail.com</a>
+      </section>
+
+      <WaveDivider fromDark={false} toDark={true}/>
+
+      {/* Still need help — dark */}
+      <section className="py-20 px-6" style={{background:'#07071a'}}>
+        <div className="container mx-auto max-w-md text-center reveal">
+          <h2 className="text-2xl font-black text-white mb-3">Still need help?</h2>
+          <p className="text-white/45 text-sm mb-6">Reach out directly and we'll get back to you.</p>
+          <a href="mailto:trainet8688@gmail.com"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full font-bold hover:from-purple-600 hover:to-blue-600 transition-all hover:scale-105 text-sm cursor-pointer"
+            style={{boxShadow:'0 0 20px rgba(139,92,246,0.35)'}}>
+            trainet8688@gmail.com <ArrowRightIcon className="w-4 h-4"/>
+          </a>
         </div>
-      </div>
-    </div>
+      </section>
+    </PublicLayout>
   );
 }

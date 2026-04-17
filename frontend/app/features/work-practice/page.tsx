@@ -1,32 +1,45 @@
 'use client';
 import Link from 'next/link';
-import { BeakerIcon, ArrowLeftIcon, SparklesIcon, UsersIcon, BriefcaseIcon } from '@heroicons/react/24/outline';
+import { BeakerIcon, SparklesIcon, UsersIcon, BriefcaseIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import PublicLayout, { PageHero, WaveDivider, AngleDivider } from '@/components/public/PublicLayout';
 
 export default function WorkPracticePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900">
-      <div className="container mx-auto px-6 py-12">
-        <Link href="/" className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-8 text-sm"><ArrowLeftIcon className="w-4 h-4" /> Back</Link>
-        <div className="max-w-4xl mx-auto">
-          <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mb-6"><BeakerIcon className="w-8 h-8 text-white" /></div>
-          <h1 className="text-5xl font-black text-white mb-4">Work & Practice</h1>
-          <p className="text-white/60 text-xl mb-12">Real-world industry challenges that build practical, job-ready skills</p>
-          <div className="grid md:grid-cols-3 gap-6 mb-12">
+    <PublicLayout>
+      <PageHero
+        icon={<BeakerIcon className="w-8 h-8"/>}
+        title="Work & Practice"
+        subtitle="Real-world industry challenges that build practical, job-ready skills"
+        accent="from-blue-500 to-cyan-500"
+      />
+      <AngleDivider fromDark={true} toDark={false}/>
+      <section className="py-20 px-6" style={{background:'#f6f3ef'}}>
+        <div className="container mx-auto max-w-4xl">
+          <div className="grid md:grid-cols-3 gap-6 mb-10 stagger-children">
             {[
-              { icon: <BriefcaseIcon className="w-6 h-6" />, title: 'Real-World Tasks', desc: 'Tasks mirror actual industry challenges — not textbook exercises.' },
-              { icon: <UsersIcon className="w-6 h-6" />, title: 'Peer Collaboration', desc: 'Work alongside peers on shared challenges and compare approaches.' },
-              { icon: <SparklesIcon className="w-6 h-6" />, title: 'AI Evaluation', desc: 'Submissions are auto-evaluated with detailed AI feedback and scores.' },
-            ].map((c, i) => (
-              <div key={i} className="bg-white/5 rounded-2xl p-6 border border-white/10">
-                <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center text-blue-400 mb-3">{c.icon}</div>
-                <h3 className="text-white font-bold mb-2">{c.title}</h3>
-                <p className="text-white/60 text-sm">{c.desc}</p>
+              {icon:<BriefcaseIcon className="w-6 h-6"/>,title:'Real-World Tasks',  desc:'Tasks mirror actual industry challenges — not textbook exercises.',accent:'#3b82f6'},
+              {icon:<UsersIcon className="w-6 h-6"/>,    title:'Peer Collaboration',desc:'Work alongside peers on shared challenges and compare approaches.',accent:'#0ea5e9'},
+              {icon:<SparklesIcon className="w-6 h-6"/>, title:'AI Evaluation',     desc:'Submissions are auto-evaluated with detailed AI feedback and scores.',accent:'#06b6d4'},
+            ].map((c,i)=>(
+              <div key={i} className="reveal bg-white rounded-2xl p-6 border border-slate-200 hover:border-blue-200 hover:-translate-y-1 hover:shadow-xl transition-all cursor-default"
+                style={{boxShadow:'0 2px 12px rgba(0,0,0,0.05)'}}>
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
+                  style={{background:`${c.accent}18`,color:c.accent}}>{c.icon}</div>
+                <h3 className="text-slate-900 font-bold mb-2">{c.title}</h3>
+                <p className="text-slate-500 text-sm leading-relaxed">{c.desc}</p>
               </div>
             ))}
           </div>
-          <div className="bg-white/5 rounded-2xl p-6 border border-white/10 mb-6">
-            <h2 className="text-2xl font-bold text-white mb-4">How It Works</h2>
-            <div className="space-y-3 text-white/70">
+        </div>
+      </section>
+      <WaveDivider fromDark={false} toDark={true}/>
+      <section className="py-20 px-6 relative" style={{background:'#07071a'}}>
+        <div className="absolute inset-0 pointer-events-none"
+          style={{background:'radial-gradient(ellipse at 50% 30%,rgba(59,130,246,0.07) 0%,transparent 60%)'}}/>
+        <div className="container mx-auto max-w-3xl relative z-10 space-y-5">
+          <div className="reveal rounded-2xl p-6 border" style={{background:'rgba(255,255,255,0.03)',borderColor:'rgba(255,255,255,0.07)'}}>
+            <h2 className="text-xl font-black text-white mb-4">How It Works</h2>
+            <div className="space-y-2 text-white/65 text-sm leading-relaxed">
               <p>1. Trainers create practice tasks linked to course offerings with real-world context.</p>
               <p>2. Students submit solutions (code, documents, or text) before the deadline.</p>
               <p>3. AI evaluates submissions for quality, completeness, and plagiarism.</p>
@@ -34,11 +47,15 @@ export default function WorkPracticePage() {
               <p>5. Performance feeds into the student's skill profile for AI recommendations.</p>
             </div>
           </div>
-          <div className="mt-12 text-center">
-            <Link href="/signup" className="px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-full font-bold hover:from-blue-600 hover:to-cyan-600 transition-all hover:scale-105">Get Started</Link>
+          <div className="text-center pt-4 reveal">
+            <Link href="/signup"
+              className="btn-shimmer inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-full font-bold hover:from-blue-600 hover:to-cyan-600 transition-all hover:scale-105 text-sm"
+              style={{boxShadow:'0 0 28px rgba(59,130,246,0.38)'}}>
+              Get Started <ArrowRightIcon className="w-4 h-4"/>
+            </Link>
           </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </PublicLayout>
   );
 }

@@ -1,32 +1,60 @@
 'use client';
 import Link from 'next/link';
-import { ArrowLeftIcon, UsersIcon, ChatBubbleLeftRightIcon, StarIcon } from '@heroicons/react/24/outline';
+import { UsersIcon, ChatBubbleLeftRightIcon, StarIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import PublicLayout, { PageHero, WaveDivider, AngleDivider } from '@/components/public/PublicLayout';
+
+const STEPS = [
+  { icon:<UsersIcon className="w-6 h-6"/>,              title:'Find a Mentor',   desc:'Browse alumni by skills and availability. Send a request with your goals.',          accent:'#8b5cf6' },
+  { icon:<ChatBubbleLeftRightIcon className="w-6 h-6"/>,title:'Direct Messaging',desc:'Once accepted, chat directly with your mentor on the platform.',                      accent:'#3b82f6' },
+  { icon:<StarIcon className="w-6 h-6"/>,               title:'Career Growth',   desc:'Get guidance on interviews, career transitions, and skill development.',              accent:'#10b981' },
+];
 
 export default function MentorshipPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-orange-900 to-red-900">
-      <div className="container mx-auto px-6 py-12 max-w-4xl">
-        <Link href="/" className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-8 text-sm"><ArrowLeftIcon className="w-4 h-4" /> Back</Link>
-        <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl flex items-center justify-center mb-6"><UsersIcon className="w-8 h-8 text-white" /></div>
-        <h1 className="text-4xl font-black text-white mb-4">Mentorship Program</h1>
-        <p className="text-white/60 text-xl mb-12">Connect students with experienced alumni for career guidance</p>
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
-          {[
-            { icon: <UsersIcon className="w-6 h-6" />, title: 'Find a Mentor', desc: 'Browse alumni by skills and availability. Send a request with your goals.' },
-            { icon: <ChatBubbleLeftRightIcon className="w-6 h-6" />, title: 'Direct Messaging', desc: 'Once accepted, chat directly with your mentor on the platform.' },
-            { icon: <StarIcon className="w-6 h-6" />, title: 'Career Growth', desc: 'Get guidance on interviews, career transitions, and skill development.' },
-          ].map((c, i) => (
-            <div key={i} className="bg-white/5 rounded-2xl p-6 border border-white/10">
-              <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center text-orange-400 mb-3">{c.icon}</div>
-              <h3 className="text-white font-bold mb-2">{c.title}</h3>
-              <p className="text-white/60 text-sm">{c.desc}</p>
-            </div>
-          ))}
+    <PublicLayout>
+      <PageHero
+        icon={<UsersIcon className="w-8 h-8"/>}
+        title="Mentorship Program"
+        subtitle="Connect students with experienced alumni for career guidance"
+        accent="from-purple-500 to-blue-500"
+      />
+      <AngleDivider fromDark={true} toDark={false}/>
+      <section className="py-20 px-6" style={{background:'#f6f3ef'}}>
+        <div className="container mx-auto max-w-4xl">
+          <div className="grid md:grid-cols-3 gap-6 stagger-children">
+            {STEPS.map((s,i)=>(
+              <div key={i} className="reveal bg-white rounded-2xl p-6 border border-slate-200 hover:border-purple-200 hover:-translate-y-1 hover:shadow-xl transition-all cursor-default"
+                style={{boxShadow:'0 2px 12px rgba(0,0,0,0.05)'}}>
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
+                  style={{background:`${s.accent}18`,color:s.accent}}>{s.icon}</div>
+                <h3 className="text-slate-900 font-bold mb-2">{s.title}</h3>
+                <p className="text-slate-500 text-sm leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="text-center">
-          <Link href="/signup" className="px-8 py-4 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full font-bold hover:from-orange-600 hover:to-red-600 transition-all hover:scale-105">Get Started</Link>
+      </section>
+      <WaveDivider fromDark={false} toDark={true}/>
+      <section className="py-20 px-6 relative" style={{background:'#07071a'}}>
+        <div className="absolute inset-0 pointer-events-none"
+          style={{background:'radial-gradient(ellipse at 50% 50%,rgba(139,92,246,0.08) 0%,transparent 70%)'}}/>
+        <div className="container mx-auto text-center relative z-10 reveal">
+          <h2 className="text-3xl font-black text-white mb-4">Find Your Mentor Today</h2>
+          <p className="text-white/45 mb-8 max-w-md mx-auto text-sm">Sign up and browse the alumni network to request mentorship.</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/signup"
+              className="btn-shimmer inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full font-bold hover:from-purple-600 hover:to-blue-600 transition-all hover:scale-105 text-sm"
+              style={{boxShadow:'0 0 28px rgba(139,92,246,0.38)'}}>
+              Get Started <ArrowRightIcon className="w-4 h-4"/>
+            </Link>
+            <Link href="/alumni"
+              className="inline-flex items-center gap-2 px-8 py-4 border text-white rounded-full font-bold hover:bg-white/5 transition-all text-sm"
+              style={{borderColor:'rgba(255,255,255,0.15)'}}>
+              Browse Alumni
+            </Link>
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </PublicLayout>
   );
 }
