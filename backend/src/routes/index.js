@@ -19,6 +19,7 @@ import certificateRoutes from './certificateRoutes.js';
 import adminRoutes from './adminRoutes.js';
 import workPracticeRoutes from './workPracticeRoutes.js';
 import alumniRoutes from './alumniRoutes.js';
+import guidanceRoutes from './guidanceRoutes.js';
 import recruiterRoutes from './recruiterRoutes.js';
 import notificationRoutes from './notificationRoutes.js';
 import aiRoutes from './aiRoutes.js';
@@ -240,6 +241,12 @@ router.use('/tasks', workPracticeRoutes);
  * /api/alumni/*
  */
 router.use('/alumni', alumniRoutes);
+
+/**
+ * Guidance & Mentorship Session routes
+ * /api/guidance/*
+ */
+router.use('/guidance', guidanceRoutes);
 
 /**
  * Recruiter / Talent Pool routes

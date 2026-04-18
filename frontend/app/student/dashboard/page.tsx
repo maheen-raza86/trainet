@@ -395,16 +395,16 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Alumni Network */}
-        <div onClick={() => router.push('/student/alumni')}
+        {/* Alumni Guidance */}
+        <div onClick={() => router.push('/student/guidance')}
           className="group bg-gradient-to-r from-indigo-500/10 to-purple-500/10 backdrop-blur-sm rounded-2xl border border-white/30 p-6 hover:from-indigo-500/20 hover:to-purple-500/20 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 cursor-pointer flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="w-14 h-14 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
               <UsersIcon className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-800">Connect with Alumni</h3>
-              <p className="text-sm text-gray-600">Get mentorship and career guidance from industry professionals</p>
+              <h3 className="text-lg font-bold text-gray-800">Alumni Guidance</h3>
+              <p className="text-sm text-gray-600">Browse alumni, request help, and track your mentorship sessions</p>
             </div>
           </div>
           <ArrowRightIcon className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition shrink-0 ml-4" />

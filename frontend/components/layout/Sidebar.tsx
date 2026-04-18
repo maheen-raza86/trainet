@@ -38,14 +38,13 @@ export default function Sidebar({ role }: SidebarProps) {
   // Navigation items for each role
   const navigationItems = {
     student: [
-      { name: 'Dashboard', href: '/student/dashboard', icon: HomeIcon },
-      { name: 'My Courses', href: '/student/courses', icon: AcademicCapIcon },
-      { name: 'Assignments', href: '/student/assignments', icon: DocumentTextIcon },
-      { name: 'Work & Practice', href: '/student/work-practice', icon: ClipboardDocumentListIcon },
-      { name: 'Certificates', href: '/student/certificates', icon: TrophyIcon },
-      { name: 'Alumni Network', href: '/student/alumni', icon: UsersIcon },
-      { name: 'Mentorship', href: '/student/mentorship', icon: SparklesIcon },
-      { name: 'Profile', href: '/student/profile', icon: UserIcon },
+      { name: 'Dashboard',      href: '/student/dashboard',    icon: HomeIcon },
+      { name: 'My Courses',     href: '/student/courses',       icon: AcademicCapIcon },
+      { name: 'Assignments',    href: '/student/assignments',   icon: DocumentTextIcon },
+      { name: 'Work & Practice',href: '/student/work-practice', icon: ClipboardDocumentListIcon },
+      { name: 'Certificates',   href: '/student/certificates',  icon: TrophyIcon },
+      { name: 'Alumni Guidance',href: '/student/guidance',      icon: SparklesIcon },
+      { name: 'Profile',        href: '/student/profile',       icon: UserIcon },
     ],
     trainer: [
       { name: 'Dashboard', href: '/trainer/dashboard', icon: HomeIcon },
@@ -56,10 +55,10 @@ export default function Sidebar({ role }: SidebarProps) {
       { name: 'Profile', href: '/trainer/profile', icon: UserIcon },
     ],
     alumni: [
-      { name: 'Dashboard', href: '/alumni/dashboard', icon: HomeIcon },
-      { name: 'Mentorship', href: '/alumni/mentorship', icon: UsersIcon },
-      { name: 'Network', href: '/alumni/network', icon: UsersIcon },
-      { name: 'Profile', href: '/alumni/profile', icon: UserIcon },
+      { name: 'Dashboard',         href: '/alumni/dashboard', icon: HomeIcon },
+      { name: 'Guidance Requests', href: '/alumni/requests',  icon: ClipboardDocumentListIcon },
+      { name: 'Sessions',          href: '/alumni/sessions',  icon: AcademicCapIcon },
+      { name: 'Profile',           href: '/alumni/profile',   icon: UserIcon },
     ],
     recruiter: [
       { name: 'Dashboard', href: '/recruiter/dashboard', icon: HomeIcon },

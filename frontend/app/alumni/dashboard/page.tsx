@@ -97,10 +97,10 @@ export default function AlumniDashboard() {
   const completedSessions = requests.filter(r => r.status === 'completed');
 
   const stats = [
-    { label: 'Pending Requests', value: pendingRequests.length, icon: ClockIcon, bg: 'from-yellow-500/10 to-orange-500/10', href: '/alumni/mentorship' },
-    { label: 'Active Sessions', value: activeSessions.length, icon: UsersIcon, bg: 'from-blue-500/10 to-cyan-500/10', href: '/alumni/mentorship' },
-    { label: 'Completed', value: completedSessions.length, icon: CheckCircleIcon, bg: 'from-green-500/10 to-emerald-500/10', href: '/alumni/mentorship' },
-    { label: 'Messages', value: inbox.length, icon: ChatBubbleLeftRightIcon, bg: 'from-purple-500/10 to-pink-500/10', href: '/alumni/messages/inbox' },
+    { label: 'Pending Requests', value: pendingRequests.length,   icon: ClockIcon,            bg: 'from-yellow-500/10 to-orange-500/10', href: '/alumni/requests' },
+    { label: 'Active Sessions',  value: activeSessions.length,    icon: UsersIcon,            bg: 'from-blue-500/10 to-cyan-500/10',    href: '/alumni/sessions' },
+    { label: 'Completed',        value: completedSessions.length, icon: CheckCircleIcon,      bg: 'from-green-500/10 to-emerald-500/10',href: '/alumni/sessions' },
+    { label: 'Messages',         value: inbox.length,             icon: ChatBubbleLeftRightIcon, bg: 'from-purple-500/10 to-pink-500/10', href: '/alumni/messages/inbox' },
   ];
 
   const statusBadge = (status: string) => {
