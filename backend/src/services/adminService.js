@@ -58,7 +58,7 @@ export const getDashboardStats = async () => {
     supabase.from('course_offerings').select('id, status'),
     supabase.from('enrollments').select('id, created_at'),
     supabase.from('assignments').select('id'),
-    supabase.from('submissions').select('id, grade, ai_score, status, submitted_at'),
+    supabase.from('submissions').select('id, final_score, ai_score, status, submitted_at'),
     supabase.from('certificates').select('id, status, issue_date'),
     supabase.from('certificate_logs').select('id, event_type'),
   ]);
@@ -82,9 +82,9 @@ export const getDashboardStats = async () => {
   const newUsersLast30Days = profiles.filter(p => p.created_at >= thirtyDaysAgo).length;
 
   // Learning activity
-  const gradedSubmissions = submissions.filter(s => s.grade !== null || s.ai_score !== null);
+  const gradedSubmissions = submissions.filter(s => s.final_score !== null || s.ai_score !== null || s.ai_score !== null);
   const scores = gradedSubmissions
-    .map(s => s.grade ?? s.ai_score)
+    .map(s => s.final_score ?? s.ai_score)
     .filter(v => v !== null);
   const averageScore = scores.length > 0
     ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
@@ -550,7 +550,7 @@ export const getOfferingMonitorDetail = async (offeringId) => {
   if (assignmentIds.length > 0) {
     const { data: subs } = await supabase
       .from('submissions')
-      .select('id, assignment_id, student_id, grade, ai_score, plagiarism_status, submitted_at, status')
+      .select('id, assignment_id, student_id, final_score, ai_score, plagiarism_status, submitted_at, status')
       .in('assignment_id', assignmentIds);
     submissions = subs || [];
   }
@@ -558,8 +558,8 @@ export const getOfferingMonitorDetail = async (offeringId) => {
   // Compute per-student stats
   const studentStats = enrollmentList.map((e) => {
     const studentSubs = submissions.filter(s => s.student_id === e.student_id);
-    const gradedSubs = studentSubs.filter(s => s.grade !== null);
-    const scores = gradedSubs.map(s => s.grade ?? s.ai_score).filter(v => v !== null);
+    const gradedSubs = studentSubs.filter(s => s.final_score !== null || s.ai_score !== null);
+    const scores = gradedSubs.map(s => s.final_score ?? s.ai_score).filter(v => v !== null);
     const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
     const completionPct = assignmentList.length > 0
       ? Math.round((studentSubs.length / assignmentList.length) * 100)
@@ -638,7 +638,7 @@ export const getAnalyticsData = async () => {
     `),
     supabase.from('enrollments').select('id, offering_id, student_id, progress, enrolled_at'),
     supabase.from('assignments').select('id, course_offering_id'),
-    supabase.from('submissions').select('id, assignment_id, student_id, grade, ai_score, plagiarism_status, status, submitted_at'),
+    supabase.from('submissions').select('id, assignment_id, student_id, final_score, ai_score, plagiarism_status, status, submitted_at'),
   ]);
 
   const profiles = profilesRes.data || [];
@@ -659,8 +659,8 @@ export const getAnalyticsData = async () => {
     : 0;
 
   // ── Section 2: Learning Analytics ─────────────────────────────────────
-  const gradedSubs = submissions.filter(s => s.grade !== null || s.ai_score !== null);
-  const scores = gradedSubs.map(s => s.grade ?? s.ai_score).filter(v => v !== null);
+  const gradedSubs = submissions.filter(s => s.final_score !== null || s.ai_score !== null || s.ai_score !== null);
+  const scores = gradedSubs.map(s => s.final_score ?? s.ai_score).filter(v => v !== null);
   const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
 
   // Completion rate: students who submitted all assignments for their enrolled offerings
@@ -688,7 +688,7 @@ export const getAnalyticsData = async () => {
       offeringAssignments.some(a => a.id === s.assignment_id)
     );
     const offeringScores = offeringSubmissions
-      .map(s => s.grade ?? s.ai_score)
+      .map(s => s.final_score ?? s.ai_score)
       .filter(v => v !== null);
     const avgCourseScore = offeringScores.length > 0
       ? Math.round(offeringScores.reduce((a, b) => a + b, 0) / offeringScores.length)
@@ -740,7 +740,7 @@ export const getAnalyticsData = async () => {
       offeringAssignments.some(a => a.id === s.assignment_id)
     );
     offeringSubmissions.forEach(s => {
-      const v = s.grade ?? s.ai_score;
+      const v = s.final_score ?? s.ai_score;
       if (v !== null) trainerMap[tid].scores.push(v);
     });
   }

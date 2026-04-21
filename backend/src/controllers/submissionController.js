@@ -16,7 +16,7 @@ import { BadRequestError } from '../utils/errors.js';
  */
 export const submitAssignment = async (req, res, next) => {
   try {
-    const { assignmentId } = req.body;
+    const { assignmentId, submissionText } = req.body;
     const studentId = req.user.id;
     const file = req.file;
 
@@ -45,11 +45,11 @@ export const submitAssignment = async (req, res, next) => {
       });
     }
 
-    if (!file) {
-      console.log('Validation failed: Missing file attachment');
+    if (!file && !submissionText) {
+      console.log('Validation failed: Missing file attachment and no submission text');
       return res.status(400).json({
         success: false,
-        message: 'File attachment is required',
+        message: 'Either a file attachment or submission text is required',
         error: 'Validation Error',
       });
     }
@@ -66,14 +66,15 @@ export const submitAssignment = async (req, res, next) => {
     }
 
     // Create file URL (relative path for now)
-    const fileUrl = `/uploads/${file.filename}`;
+    const fileUrl = file ? `/uploads/${file.filename}` : null;
 
     const submission = await submissionService.submitAssignment({
       assignmentId,
       studentId,
       attachmentUrl: fileUrl,
-      fileName: file.originalname,
-      fileSize: file.size,
+      fileName: file ? file.originalname : null,
+      fileSize: file ? file.size : null,
+      submissionText: submissionText || null,
     });
 
     console.log('Assignment submitted successfully:', submission);
@@ -245,13 +246,62 @@ export const runAiEvaluation = async (req, res, next) => {
     const { id } = req.params;
     const trainerId = req.user.id;
 
+    console.log(`[runAiEvaluation] Request received — submissionId: ${id}, trainerId: ${trainerId}`);
+
     const submission = await submissionService.runAiEvaluation(id, trainerId);
+
+    console.log(`[runAiEvaluation] Done — ai_score: ${submission.ai_score}, ai_status: ${submission.ai_status}`);
 
     res.status(200).json({
       success: true,
       message: 'AI evaluation completed',
       data: submission,
     });
+  } catch (error) {
+    console.error('[runAiEvaluation] Error:', error.message);
+    next(error);
+  }
+};
+
+/**
+ * Finalize submission — trainer sets final score + feedback
+ * PUT /api/submissions/:id/finalize
+ */
+export const finalizeSubmission = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { finalScore, trainerFeedback } = req.body;
+    const trainerId = req.user.id;
+
+    if (finalScore !== undefined && (finalScore < 0 || finalScore > 100)) {
+      throw new BadRequestError('Final score must be between 0 and 100');
+    }
+
+    const submission = await submissionService.finalizeSubmission(id, trainerId, {
+      finalScore,
+      trainerFeedback,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Submission finalized successfully',
+      data: submission,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get a single submission by ID (student fetches their own)
+ * GET /api/submissions/:id
+ */
+export const getSubmissionById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const studentId = req.user.id;
+    const submission = await submissionService.getSubmissionById(id, studentId);
+    res.status(200).json({ success: true, message: 'Submission retrieved', data: submission });
   } catch (error) {
     next(error);
   }

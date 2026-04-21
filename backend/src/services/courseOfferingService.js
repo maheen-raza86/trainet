@@ -45,7 +45,11 @@ export const getCourseCatalog = async () => {
  */
 export const createCourseOffering = async (trainerId, offeringData) => {
   try {
-    const { courseId, durationWeeks, hoursPerWeek, outline, startDate, endDate, registrationDeadline } = offeringData;
+    const {
+      courseId, durationWeeks, hoursPerWeek, outline,
+      startDate, endDate, registrationDeadline,
+      weeklyDays, sessionStartTime, sessionEndTime,
+    } = offeringData;
 
     // Validate required fields
     if (!courseId || !durationWeeks || !hoursPerWeek || !outline) {
@@ -138,6 +142,9 @@ export const createCourseOffering = async (trainerId, offeringData) => {
           start_date: startDate || null,
           end_date: endDate || null,
           registration_deadline: registrationDeadline || null,
+          weekly_days: weeklyDays || null,
+          session_start_time: sessionStartTime || null,
+          session_end_time: sessionEndTime || null,
           status: 'open',
         },
       ])
@@ -709,5 +716,86 @@ export const adminDeleteOffering = async (offeringId) => {
     }
     logger.error('Unexpected error deleting offering (admin):', error);
     throw new BadRequestError('Failed to delete course offering');
+  }
+};
+
+
+/**
+ * Auto-complete offerings whose end_date has passed
+ * Called on server startup or via a scheduled check
+ */
+export const autoCompleteExpiredOfferings = async () => {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('course_offerings')
+      .update({ status: 'completed' })
+      .eq('status', 'open')
+      .lt('end_date', now)
+      .select('id');
+    if (error) {
+      logger.error('Error auto-completing offerings:', error);
+    } else if (data && data.length > 0) {
+      logger.info(`Auto-completed ${data.length} expired course offering(s)`);
+    }
+  } catch (err) {
+    logger.error('Unexpected error in autoCompleteExpiredOfferings:', err);
+  }
+};
+
+/**
+ * Drop a course (student only)
+ * Sets enrollment.status = 'dropped' — does NOT delete data
+ */
+export const dropCourse = async (studentId, offeringId) => {
+  try {
+    // Verify enrollment exists and is active
+    const { data: enrollment, error: enrollError } = await supabase
+      .from('enrollments')
+      .select('id, status')
+      .eq('student_id', studentId)
+      .eq('offering_id', offeringId)
+      .single();
+
+    if (enrollError || !enrollment) {
+      throw new NotFoundError('Enrollment not found');
+    }
+    if (enrollment.status === 'dropped') {
+      throw new ConflictError('You have already dropped this course');
+    }
+
+    // Verify offering is still open (cannot drop a completed course)
+    const { data: offering } = await supabase
+      .from('course_offerings')
+      .select('status')
+      .eq('id', offeringId)
+      .single();
+
+    if (offering?.status === 'completed') {
+      throw new ConflictError('Cannot drop a completed course');
+    }
+
+    const { data, error } = await supabase
+      .from('enrollments')
+      .update({ status: 'dropped' })
+      .eq('id', enrollment.id)
+      .select('*')
+      .single();
+
+    if (error) {
+      logger.error('Error dropping course:', error);
+      throw new BadRequestError('Failed to drop course');
+    }
+
+    logger.info(`Student ${studentId} dropped offering ${offeringId}`);
+    return data;
+  } catch (err) {
+    if (
+      err instanceof NotFoundError ||
+      err instanceof ConflictError ||
+      err instanceof BadRequestError
+    ) throw err;
+    logger.error('Unexpected error dropping course:', err);
+    throw new BadRequestError('Failed to drop course');
   }
 };

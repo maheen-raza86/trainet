@@ -6,19 +6,27 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/api/client';
 import {
-  UsersIcon, BookmarkIcon, ChatBubbleLeftRightIcon, SparklesIcon,
-  ExclamationTriangleIcon, ArrowRightIcon, StarIcon,
+  UsersIcon, BookmarkIcon, ExclamationTriangleIcon,
+  StarIcon, EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 
-interface Candidate { id: string; first_name: string; last_name: string; skills: string; match_score: number; avg_grade: number; certificate_count: number; }
-interface InboxItem { id: string; message: string; created_at: string; sender_id: string; receiver_id: string; sender: { id: string; first_name: string; last_name: string }; receiver: { id: string; first_name: string; last_name: string }; }
+interface Candidate {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  skills: string;
+  match_score: number;
+  avg_grade: number;
+  certificate_count: number;
+}
 
 export default function RecruiterDashboard() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [topCandidates, setTopCandidates] = useState<Candidate[]>([]);
-  const [bookmarks, setBookmarks] = useState<any[]>([]);
-  const [inbox, setInbox] = useState<InboxItem[]>([]);
+  const [bookmarkCount, setBookmarkCount] = useState(0);
+  const [candidateCount, setCandidateCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,14 +45,14 @@ export default function RecruiterDashboard() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [searchRes, bookmarksRes, inboxRes]: any[] = await Promise.all([
+      const [searchRes, bookmarksRes]: any[] = await Promise.all([
         apiClient.get('/recruiter/search').catch(() => ({ data: { candidates: [] } })),
         apiClient.get('/recruiter/bookmarks').catch(() => ({ data: { bookmarks: [] } })),
-        apiClient.get('/recruiter/messages/inbox').catch(() => ({ data: { inbox: [] } })),
       ]);
-      setTopCandidates((searchRes.data?.candidates || []).slice(0, 5));
-      setBookmarks(bookmarksRes.data?.bookmarks || []);
-      setInbox(inboxRes.data?.inbox || []);
+      const candidates: Candidate[] = searchRes.data?.candidates || [];
+      setCandidateCount(candidates.length);
+      setTopCandidates(candidates.slice(0, 3));
+      setBookmarkCount((bookmarksRes.data?.bookmarks || []).length);
     } catch (err: any) {
       setError(err.message || 'Failed to load dashboard');
     } finally {
@@ -52,18 +60,25 @@ export default function RecruiterDashboard() {
     }
   };
 
+  const sendEmail = (candidate: Candidate) => {
+    const name = `${candidate.first_name} ${candidate.last_name}`;
+    const subject = encodeURIComponent('TRAINET Opportunity');
+    const body = encodeURIComponent(
+      `Hello ${name}, I found your profile on TRAINET and would like to connect regarding an opportunity.`
+    );
+    window.location.href = `mailto:${candidate.email}?subject=${subject}&body=${body}`;
+  };
+
   const stats = [
-    { label: 'Total Candidates', value: topCandidates.length, icon: UsersIcon, bg: 'from-blue-500/10 to-cyan-500/10', href: '/recruiter/talent' },
-    { label: 'Shortlisted', value: bookmarks.length, icon: BookmarkIcon, bg: 'from-purple-500/10 to-pink-500/10', href: '/recruiter/bookmarks' },
-    { label: 'Messages', value: inbox.length, icon: ChatBubbleLeftRightIcon, bg: 'from-green-500/10 to-emerald-500/10', href: '/recruiter/messages/inbox' },
-    { label: 'Top Matches', value: topCandidates.filter(c => c.match_score >= 70).length, icon: SparklesIcon, bg: 'from-yellow-500/10 to-orange-500/10', href: '/recruiter/talent' },
+    { label: 'Candidates Available', value: candidateCount, icon: UsersIcon, bg: 'from-blue-500/10 to-cyan-500/10', href: '/recruiter/talent' },
+    { label: 'Bookmarked Candidates', value: bookmarkCount, icon: BookmarkIcon, bg: 'from-purple-500/10 to-pink-500/10', href: '/recruiter/bookmarks' },
   ];
 
   if (loading) {
     return (
       <DashboardLayout title="Recruiter Dashboard" subtitle="Loading...">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1,2,3,4].map(i => <div key={i} className="bg-white/60 rounded-2xl p-6 border border-white/30 animate-pulse h-24" />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[1, 2].map(i => <div key={i} className="bg-white/60 rounded-2xl p-6 border border-white/30 animate-pulse h-24" />)}
         </div>
       </DashboardLayout>
     );
@@ -85,8 +100,8 @@ export default function RecruiterDashboard() {
     <DashboardLayout title={`Welcome back, ${user?.firstName}!`} subtitle="Find the perfect talent for your organization">
       <div className="space-y-8">
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Stats — 2 cards only */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {stats.map((stat, i) => {
             const Icon = stat.icon;
             return (
@@ -106,108 +121,59 @@ export default function RecruiterDashboard() {
           })}
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Top Matches */}
-          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/30 overflow-hidden">
-            <div className="p-6 border-b border-white/20 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800">Top Matches</h2>
-              <button onClick={() => router.push('/recruiter/talent')} className="text-sm text-purple-600 hover:text-purple-700 font-medium">View All</button>
-            </div>
-            <div className="p-6">
-              {topCandidates.length > 0 ? (
-                <div className="space-y-3">
-                  {topCandidates.map(c => (
-                    <div key={c.id} onClick={() => router.push(`/recruiter/candidate/${c.id}`)}
-                      className="group bg-white/40 rounded-xl p-4 border border-white/30 hover:bg-white/60 transition cursor-pointer">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-gray-800 group-hover:text-purple-700 transition">{c.first_name} {c.last_name}</p>
-                            <span className="flex items-center gap-0.5 text-xs text-yellow-600 font-medium">
-                              <StarIcon className="w-3 h-3 fill-yellow-400 text-yellow-400" />{c.match_score}%
-                            </span>
-                          </div>
-                          {c.skills && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {c.skills.split(',').slice(0, 3).map((s, i) => (
-                                <span key={i} className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">{s.trim()}</span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition shrink-0 ml-2" />
+        {/* Recommended Candidates */}
+        <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/30 overflow-hidden">
+          <div className="p-6 border-b border-white/20 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-800">Recommended Candidates</h2>
+            <button onClick={() => router.push('/recruiter/talent')}
+              className="text-sm text-purple-600 hover:text-purple-700 font-medium">
+              View All
+            </button>
+          </div>
+          <div className="p-6">
+            {topCandidates.length === 0 ? (
+              <div className="text-center py-8">
+                <UsersIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 text-sm">No candidates available yet.</p>
+                <p className="text-gray-400 text-xs mt-1">Students must enable "Allow recruiters to view my profile" in their settings.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {topCandidates.map(c => (
+                  <div key={c.id} className="flex items-center justify-between bg-white/40 rounded-xl p-4 border border-white/30 hover:bg-white/60 transition">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-semibold text-gray-800">{c.first_name} {c.last_name}</p>
+                        <span className="flex items-center gap-0.5 text-xs font-medium text-yellow-600">
+                          <StarIcon className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                          {c.match_score}%
+                        </span>
                       </div>
+                      {c.skills && (
+                        <div className="flex flex-wrap gap-1">
+                          {c.skills.split(',').slice(0, 3).map((s, i) => (
+                            <span key={i} className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">{s.trim()}</span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <UsersIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No candidates yet</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Recent Messages */}
-          <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/30 overflow-hidden">
-            <div className="p-6 border-b border-white/20 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800">Messages</h2>
-              <button onClick={() => router.push('/recruiter/messages/inbox')} className="text-sm text-purple-600 hover:text-purple-700 font-medium">View All</button>
-            </div>
-            <div className="p-6">
-              {inbox.length > 0 ? (
-                <div className="space-y-3">
-                  {inbox.slice(0, 5).map(msg => {
-                    const partner = msg.sender_id === user?.id ? msg.receiver : msg.sender;
-                    return (
-                      <div key={msg.id} onClick={() => router.push(`/recruiter/messages/${partner.id}`)}
-                        className="group bg-white/40 rounded-xl p-4 border border-white/30 hover:bg-white/60 transition cursor-pointer">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-800 group-hover:text-purple-700 transition">{partner.first_name} {partner.last_name}</p>
-                            <p className="text-sm text-gray-500 truncate">{msg.message}</p>
-                          </div>
-                          <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition shrink-0 ml-2" />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <ChatBubbleLeftRightIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No messages yet</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* AI Matching Panel */}
-        <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 backdrop-blur-sm rounded-2xl border border-white/30 p-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-              <SparklesIcon className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-gray-800">AI Talent Matching</h3>
-              <p className="text-sm text-gray-600">Candidates scored by skill match, project relevance, and performance</p>
-            </div>
-          </div>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="bg-white/40 rounded-xl p-4 border border-white/30">
-              <h4 className="font-medium text-gray-800 mb-2">Skill Match (50%)</h4>
-              <p className="text-sm text-gray-600">Candidates matched against your required skills</p>
-            </div>
-            <div className="bg-white/40 rounded-xl p-4 border border-white/30">
-              <h4 className="font-medium text-gray-800 mb-2">Project Relevance (30%)</h4>
-              <p className="text-sm text-gray-600">Based on work & practice submissions</p>
-            </div>
-            <div className="bg-white/40 rounded-xl p-4 border border-white/30">
-              <h4 className="font-medium text-gray-800 mb-2">Performance (20%)</h4>
-              <p className="text-sm text-gray-600">Average grade across all graded submissions</p>
-            </div>
+                    <div className="flex gap-2 shrink-0 ml-4">
+                      <button
+                        onClick={() => router.push(`/recruiter/candidate/${c.id}`)}
+                        className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs rounded-lg hover:from-purple-600 hover:to-blue-600 transition">
+                        View Profile
+                      </button>
+                      <button
+                        onClick={() => sendEmail(c)}
+                        className="flex items-center gap-1 px-3 py-1.5 border border-gray-200 text-gray-600 text-xs rounded-lg hover:bg-gray-50 transition">
+                        <EnvelopeIcon className="w-3.5 h-3.5" />
+                        Send Email
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

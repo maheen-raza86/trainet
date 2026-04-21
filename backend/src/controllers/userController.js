@@ -104,7 +104,7 @@ export const updateProfile = async (req, res, next) => {
 export const patchProfile = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { firstName, lastName, bio, skills } = req.body;
+    const { firstName, lastName, bio, skills, interests, visibility_in_talent_pool } = req.body;
     const file = req.file;
 
     if (req.body.role) {
@@ -115,7 +115,7 @@ export const patchProfile = async (req, res, next) => {
       });
     }
 
-    const updatePayload = { firstName, lastName, bio, skills };
+    const updatePayload = { firstName, lastName, bio, skills, interests, visibility_in_talent_pool };
 
     // If a file was uploaded, build the full absolute URL and store it
     if (file) {

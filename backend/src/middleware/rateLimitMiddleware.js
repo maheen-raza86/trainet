@@ -34,12 +34,13 @@ export const authLimiter =
     ? (req, res, next) => next()
     : rateLimit({
         windowMs: 15 * 60 * 1000, // 15 minutes
-        max: 5, // 5 requests per window
+        max: 20, // raised from 5 → 20 to support multi-account testing
         message: {
           success: false,
-          message: 'Too many authentication attempts, please try again later.',
+          message: 'Too many login attempts. Please wait 15 minutes before trying again.',
           error: 'Rate Limit Exceeded',
         },
         standardHeaders: true,
         legacyHeaders: false,
+        skipSuccessfulRequests: true, // only count failed attempts
       });

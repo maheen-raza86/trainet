@@ -8,15 +8,12 @@ import { useEffect, useState } from 'react';
 import apiClient from '@/lib/api/client';
 import {
   AcademicCapIcon,
-  DocumentTextIcon,
   UsersIcon,
-  ClockIcon,
-  CheckCircleIcon,
   ExclamationTriangleIcon,
   SparklesIcon,
   ArrowRightIcon,
   PlusIcon,
-  EyeIcon
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 
 interface CourseOffering {
@@ -28,28 +25,10 @@ interface CourseOffering {
   courses: { id: string; title: string; description: string };
 }
 
-interface Assignment {
-  id: string;
-  title: string;
-  due_date: string;
-  course_offering_id: string;
-}
-
-interface Submission {
-  id: string;
-  assignment_id: string;
-  student_id: string;
-  status: string;
-  grade: number | null;
-  submitted_at: string;
-}
-
 export default function TrainerDashboard() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [offerings, setOfferings] = useState<CourseOffering[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [totalStudents, setTotalStudents] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,29 +55,9 @@ export default function TrainerDashboard() {
       const offeringsData: CourseOffering[] = offeringsRes.data?.offerings || [];
       setOfferings(offeringsData);
 
-      const allAssignments: Assignment[] = [];
-      const allSubmissions: Submission[] = [];
       const studentIds = new Set<string>();
 
       for (const offering of offeringsData) {
-        // Fetch assignments
-        try {
-          const aRes: any = await apiClient.get(`/assignments/course-offering/${offering.id}`);
-          const offeringAssignments: Assignment[] = aRes.data?.assignments || [];
-          allAssignments.push(...offeringAssignments);
-
-          // Fetch submissions per assignment
-          for (const assignment of offeringAssignments) {
-            try {
-              const sRes: any = await apiClient.get(`/submissions/assignment/${assignment.id}`);
-              const subs: Submission[] = sRes.data?.submissions || [];
-              allSubmissions.push(...subs);
-              subs.forEach(s => studentIds.add(s.student_id));
-            } catch { /* skip */ }
-          }
-        } catch { /* skip */ }
-
-        // Fetch enrollments to count unique students
         try {
           const eRes: any = await apiClient.get(`/enrollments/offering/${offering.id}`);
           const enrollments = eRes.data?.enrollments || [];
@@ -106,8 +65,6 @@ export default function TrainerDashboard() {
         } catch { /* skip */ }
       }
 
-      setAssignments(allAssignments);
-      setSubmissions(allSubmissions);
       setTotalStudents(studentIds.size);
     } catch (err: any) {
       setError(err.message || 'Failed to load dashboard data');
@@ -117,32 +74,20 @@ export default function TrainerDashboard() {
   };
 
   // Stats
-  const pendingSubmissionsCount = submissions.filter(s => s.grade === null).length;
-  const gradedSubmissionsCount = submissions.filter(s => s.grade !== null).length;
-  const avgProgress = totalStudents > 0
-    ? Math.round(submissions.filter(s => s.grade !== null).reduce((sum, s) => sum + (s.grade || 0), 0) / Math.max(1, gradedSubmissionsCount))
-    : 0;
-
   const stats = [
     { label: 'Course Offerings', value: offerings.length, icon: AcademicCapIcon, color: 'from-blue-500 to-cyan-500', bg: 'from-blue-500/10 to-cyan-500/10', href: '/trainer/courses' },
-    { label: 'Total Students', value: totalStudents, icon: UsersIcon, color: 'from-green-500 to-emerald-500', bg: 'from-green-500/10 to-emerald-500/10', href: '/trainer/courses' },
-    { label: 'Assignments Created', value: assignments.length, icon: DocumentTextIcon, color: 'from-purple-500 to-pink-500', bg: 'from-purple-500/10 to-pink-500/10', href: '/trainer/assignments' },
-    { label: 'Pending Submissions', value: pendingSubmissionsCount, icon: ClockIcon, color: 'from-yellow-500 to-orange-500', bg: 'from-yellow-500/10 to-orange-500/10', href: '/trainer/submissions' },
+    { label: 'Total Students', value: totalStudents, icon: UsersIcon, color: 'from-green-500 to-emerald-500', bg: 'from-green-500/10 to-emerald-500/10', href: '/trainer/students' },
   ];
 
   const recentOfferings = [...offerings]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 3);
 
-  const recentSubmissions = [...submissions]
-    .sort((a, b) => new Date(b.submitted_at || 0).getTime() - new Date(a.submitted_at || 0).getTime())
-    .slice(0, 5);
-
   if (loading) {
     return (
       <DashboardLayout title="Trainer Dashboard" subtitle="Loading your teaching overview...">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1,2,3,4].map(i => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[1, 2].map(i => (
             <div key={i} className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/30 animate-pulse">
               <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
               <div className="h-8 bg-gray-200 rounded w-16"></div>
@@ -170,7 +115,7 @@ export default function TrainerDashboard() {
       <div className="space-y-8">
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {stats.map((stat, i) => {
             const Icon = stat.icon;
             return (
@@ -212,7 +157,7 @@ export default function TrainerDashboard() {
                   {recentOfferings.map(offering => (
                     <div
                       key={offering.id}
-                      onClick={() => router.push('/trainer/courses')}
+                      onClick={() => router.push(`/trainer/courses/${offering.id}`)}
                       className="group bg-white/40 rounded-xl p-4 border border-white/30 hover:bg-white/60 transition-all duration-300 cursor-pointer"
                     >
                       <div className="flex items-center justify-between">
@@ -240,93 +185,42 @@ export default function TrainerDashboard() {
             </div>
           </div>
 
-          {/* Recent Submissions */}
+          {/* Quick Links */}
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/30 overflow-hidden">
-            <div className="p-6 border-b border-white/20 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-800">Recent Submissions</h2>
-              <button onClick={() => router.push('/trainer/submissions')} className="text-sm text-purple-600 hover:text-purple-700 font-medium">View All</button>
+            <div className="p-6 border-b border-white/20">
+              <h2 className="text-xl font-bold text-gray-800">Quick Actions</h2>
             </div>
-            <div className="p-6">
-              {recentSubmissions.length > 0 ? (
-                <div className="space-y-3">
-                  {recentSubmissions.map(sub => {
-                    const assignment = assignments.find(a => a.id === sub.assignment_id);
-                    return (
-                      <div
-                        key={sub.id}
-                        onClick={() => router.push('/trainer/submissions')}
-                        className="group bg-white/40 rounded-xl p-4 border border-white/30 hover:bg-white/60 transition-all duration-300 cursor-pointer"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-medium text-gray-800 group-hover:text-purple-700 transition-colors">{assignment?.title || 'Assignment'}</h3>
-                            <p className="text-xs text-gray-500 mt-1 flex items-center">
-                              <ClockIcon className="w-3 h-3 mr-1" />
-                              {sub.submitted_at ? new Date(sub.submitted_at).toLocaleDateString() : '—'}
-                            </p>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <span className={`px-3 py-1 text-xs rounded-full border ${sub.grade !== null ? 'bg-green-100 text-green-700 border-green-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200'}`}>
-                              {sub.grade !== null ? 'Graded' : 'Pending'}
-                            </span>
-                            <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+            <div className="p-6 space-y-3">
+              <button
+                onClick={() => router.push('/trainer/courses')}
+                className="w-full flex items-center justify-between px-4 py-3 bg-white/40 rounded-xl border border-white/30 hover:bg-white/60 transition group"
+              >
+                <div className="flex items-center gap-3">
+                  <AcademicCapIcon className="w-5 h-5 text-purple-500" />
+                  <span className="text-sm font-medium text-gray-700">Manage My Courses</span>
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <DocumentTextIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No submissions yet</p>
+                <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
+              </button>
+              <button
+                onClick={() => router.push('/trainer/students')}
+                className="w-full flex items-center justify-between px-4 py-3 bg-white/40 rounded-xl border border-white/30 hover:bg-white/60 transition group"
+              >
+                <div className="flex items-center gap-3">
+                  <UsersIcon className="w-5 h-5 text-blue-500" />
+                  <span className="text-sm font-medium text-gray-700">View My Students</span>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* AI Teaching Assistant */}
-        <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 backdrop-blur-sm rounded-2xl border border-white/30 p-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-              <SparklesIcon className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-gray-800">Teaching Journey</h3>
-              <p className="text-sm text-gray-600">Your impact as a trainer</p>
-            </div>
-          </div>
-          <div className="grid md:grid-cols-4 gap-4">
-            <div className="bg-white/40 rounded-xl p-4 border border-white/30 text-center">
-              <p className="text-2xl font-bold text-gray-800">{offerings.filter(o => o.status === 'open').length}</p>
-              <p className="text-xs text-gray-500 mt-1">Active Courses</p>
-            </div>
-            <div className="bg-white/40 rounded-xl p-4 border border-white/30 text-center">
-              <p className="text-2xl font-bold text-gray-800">{totalStudents}</p>
-              <p className="text-xs text-gray-500 mt-1">Students Taught</p>
-            </div>
-            <div className="bg-white/40 rounded-xl p-4 border border-white/30 text-center">
-              <p className="text-2xl font-bold text-gray-800">{submissions.length}</p>
-              <p className="text-xs text-gray-500 mt-1">Total Submissions</p>
-            </div>
-            <div className="bg-white/40 rounded-xl p-4 border border-white/30 text-center">
-              <p className="text-2xl font-bold text-gray-800">{avgProgress > 0 ? `${avgProgress}%` : '—'}</p>
-              <p className="text-xs text-gray-500 mt-1">Avg Student Grade</p>
-            </div>
-          </div>
-          <div className="grid md:grid-cols-3 gap-4 mt-4">
-            <div className="bg-white/40 rounded-xl p-4 border border-white/30">
-              <h4 className="font-medium text-gray-800 mb-2">Student Engagement</h4>
-              <p className="text-sm text-gray-600">{totalStudents > 0 ? `${totalStudents} student(s) enrolled across your offerings` : 'No students enrolled yet'}</p>
-            </div>
-            <div className="bg-white/40 rounded-xl p-4 border border-white/30">
-              <h4 className="font-medium text-gray-800 mb-2">Grading Status</h4>
-              <p className="text-sm text-gray-600">{pendingSubmissionsCount > 0 ? `${pendingSubmissionsCount} submission(s) awaiting review` : 'All submissions are graded!'}</p>
-            </div>
-            <div className="bg-white/40 rounded-xl p-4 border border-white/30">
-              <h4 className="font-medium text-gray-800 mb-2">Course Activity</h4>
-              <p className="text-sm text-gray-600">{offerings.length > 0 ? `${offerings.filter(o => o.status === 'open').length} active offering(s) open for enrollment` : 'Create your first course offering'}</p>
+                <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
+              </button>
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-white/40 rounded-xl border border-white/30 hover:bg-white/60 transition group"
+              >
+                <div className="flex items-center gap-3">
+                  <PlusIcon className="w-5 h-5 text-green-500" />
+                  <span className="text-sm font-medium text-gray-700">Create New Course Offering</span>
+                </div>
+                <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-green-600 transition-colors" />
+              </button>
             </div>
           </div>
         </div>

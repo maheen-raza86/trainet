@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api/client';
 import {
   BellIcon,
-  MagnifyingGlassIcon,
   ChevronDownIcon,
   UserIcon,
   Cog6ToothIcon,
@@ -24,11 +23,6 @@ interface Notification {
   created_at: string;
 }
 
-interface SearchResult {
-  courses: { id: string; title: string; description: string }[];
-  alumni: { id: string; headline: string; profiles: { first_name: string; last_name: string } }[];
-}
-
 interface HeaderProps {
   title?: string;
   subtitle?: string;
@@ -36,16 +30,11 @@ interface HeaderProps {
 
 export default function Header({ title = 'Welcome back!', subtitle = "Here's what's happening" }: HeaderProps) {
   const { user, logout } = useAuth();
-  const router = useRouter();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult | null>(null);
-  const [searchOpen, setSearchOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user) fetchNotifications();
@@ -56,24 +45,10 @@ export default function Header({ title = 'Welcome back!', subtitle = "Here's wha
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) setIsNotifOpen(false);
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  // Debounced search
-  useEffect(() => {
-    if (searchQuery.trim().length < 2) { setSearchResults(null); return; }
-    const t = setTimeout(async () => {
-      try {
-        const res: any = await apiClient.get(`/search?q=${encodeURIComponent(searchQuery)}`);
-        setSearchResults(res.data || null);
-        setSearchOpen(true);
-      } catch { /* ignore */ }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [searchQuery]);
 
   const fetchNotifications = async () => {
     try {
@@ -108,7 +83,7 @@ export default function Header({ title = 'Welcome back!', subtitle = "Here's wha
     return map[type] || 'ℹ️';
   };
 
-  const hasResults = searchResults && (searchResults.courses.length > 0 || searchResults.alumni.length > 0);
+  const isAdmin = user?.role === 'admin';
 
   return (
     <header className="bg-white/80 backdrop-blur-lg border-b border-white/20 px-6 py-4 sticky top-0 z-40">
@@ -119,53 +94,6 @@ export default function Header({ title = 'Welcome back!', subtitle = "Here's wha
         </div>
 
         <div className="flex items-center space-x-4">
-          {/* Search with dropdown */}
-          <div className="relative hidden md:block" ref={searchRef}>
-            <div className="flex items-center space-x-2 bg-white/60 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/30">
-              <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 shrink-0" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                onFocus={() => hasResults && setSearchOpen(true)}
-                placeholder="Search courses, alumni..."
-                className="bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400 w-48"
-              />
-            </div>
-            {searchOpen && hasResults && (
-              <div className="absolute top-full mt-2 left-0 w-80 bg-white/95 backdrop-blur-lg rounded-2xl shadow-xl border border-white/30 z-50 overflow-hidden">
-                {searchResults!.courses.length > 0 && (
-                  <div>
-                    <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">Courses</p>
-                    {searchResults!.courses.map(c => (
-                      <div key={c.id} onClick={() => { router.push('/student/courses'); setSearchOpen(false); setSearchQuery(''); }}
-                        className="px-4 py-2.5 hover:bg-purple-50 cursor-pointer transition">
-                        <p className="text-sm font-medium text-gray-800">{c.title}</p>
-                        <p className="text-xs text-gray-500 truncate">{c.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {searchResults!.alumni.length > 0 && (
-                  <div>
-                    <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">Alumni</p>
-                    {searchResults!.alumni.map(a => (
-                      <div key={a.id} onClick={() => { router.push('/student/alumni'); setSearchOpen(false); setSearchQuery(''); }}
-                        className="px-4 py-2.5 hover:bg-purple-50 cursor-pointer transition">
-                        <p className="text-sm font-medium text-gray-800">{a.profiles?.first_name} {a.profiles?.last_name}</p>
-                        {a.headline && <p className="text-xs text-gray-500 truncate">{a.headline}</p>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            {searchOpen && searchQuery.length >= 2 && !hasResults && (
-              <div className="absolute top-full mt-2 left-0 w-64 bg-white/95 backdrop-blur-lg rounded-2xl shadow-xl border border-white/30 z-50 p-4 text-center text-sm text-gray-400">
-                No results found
-              </div>
-            )}
-          </div>
 
           {/* Notifications */}
           <div className="relative" ref={notifRef}>
@@ -245,10 +173,12 @@ export default function Header({ title = 'Welcome back!', subtitle = "Here's wha
                     className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                     <UserIcon className="w-4 h-4" /><span>View Profile</span>
                   </Link>
-                  <Link href={user?.role === 'admin' ? '/admin/settings' : `/${user?.role}/profile`} onClick={() => setIsProfileOpen(false)}
-                    className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                    <Cog6ToothIcon className="w-4 h-4" /><span>Settings</span>
-                  </Link>
+                  {isAdmin && (
+                    <Link href="/admin/settings" onClick={() => setIsProfileOpen(false)}
+                      className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                      <Cog6ToothIcon className="w-4 h-4" /><span>Settings</span>
+                    </Link>
+                  )}
                 </div>
                 <div className="border-t border-gray-100 pt-2">
                   <button onClick={handleLogout}

@@ -59,6 +59,12 @@ router.post('/enroll', verifyToken, (req, res) => {
 router.delete('/enrollment/:enrollmentId', verifyToken, authorizeRoles('trainer'), courseOfferingController.removeEnrollment);
 
 /**
+ * Drop a course offering (student only)
+ * POST /api/course-offerings/:id/drop
+ */
+router.post('/:id/drop', verifyToken, authorizeRoles('student'), courseOfferingController.dropCourse);
+
+/**
  * Delete course offering (trainer only)
  * DELETE /api/course-offerings/:id
  */

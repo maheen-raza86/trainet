@@ -20,7 +20,6 @@ interface EditAssignmentModalProps {
 interface AssignmentFormData {
   title: string;
   description: string;
-  courseOfferingId: string;
   dueDate: string;
 }
 
@@ -37,7 +36,6 @@ export default function EditAssignmentModal({ isOpen, onClose, onSuccess, assign
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [courses, setCourses] = useState<CourseOffering[]>([]);
-  const [loadingCourses, setLoadingCourses] = useState(false);
 
   const {
     register,
@@ -54,8 +52,7 @@ export default function EditAssignmentModal({ isOpen, onClose, onSuccess, assign
         // Populate form with existing assignment data
         setValue('title', assignment.title);
         setValue('description', assignment.description);
-        setValue('courseOfferingId', assignment.course_offering_id);
-        
+
         // Format the due date for datetime-local input
         const dueDate = new Date(assignment.due_date);
         const formattedDate = dueDate.toISOString().slice(0, 16);
@@ -66,35 +63,38 @@ export default function EditAssignmentModal({ isOpen, onClose, onSuccess, assign
 
   const fetchCourses = async () => {
     try {
-      setLoadingCourses(true);
       const response: any = await apiClient.get('/course-offerings/trainer');
-      setCourses(response.offerings || []);
+      // apiClient interceptor returns response.data, so shape is { success, data: { offerings } }
+      setCourses(response.data?.offerings || []);
     } catch (err) {
       console.error('Error fetching course offerings:', err);
-    } finally {
-      setLoadingCourses(false);
     }
   };
 
   const onSubmit = async (data: AssignmentFormData) => {
     if (!assignment) return;
 
+    const payload = {
+      title: data.title,
+      description: data.description,
+      dueDate: new Date(data.dueDate).toISOString(),
+    };
+
+    console.log('[EditAssignment] PUT /assignments/' + assignment.id, payload);
+
     try {
       setIsSubmitting(true);
       setError(null);
 
-      await apiClient.put(`/assignments/${assignment.id}`, {
-        title: data.title,
-        description: data.description,
-        dueDate: new Date(data.dueDate).toISOString(),
-      });
+      const response = await apiClient.put(`/assignments/${assignment.id}`, payload);
+      console.log('[EditAssignment] Response:', response);
 
       reset();
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Error updating assignment:', err);
-      setError(err.message || 'Failed to update assignment');
+      console.error('[EditAssignment] Update failed:', err?.message, err);
+      setError(err?.message || 'Failed to update assignment');
     } finally {
       setIsSubmitting(false);
     }
@@ -107,6 +107,8 @@ export default function EditAssignmentModal({ isOpen, onClose, onSuccess, assign
   };
 
   if (!isOpen || !assignment) return null;
+
+  const courseTitle = courses.find(c => c.id === assignment.course_offering_id)?.courses?.title;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -183,13 +185,13 @@ export default function EditAssignmentModal({ isOpen, onClose, onSuccess, assign
             )}
           </div>
 
-          {/* Course Selection - Read Only */}
+          {/* Course Offering - Read Only display */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Course Offering <span className="text-gray-500">(Cannot be changed)</span>
             </label>
             <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
-              {courses.find(c => c.id === assignment?.course_offering_id)?.courses.title || 'Loading...'}
+              {courseTitle || 'Loading...'}
             </div>
           </div>
 
@@ -216,7 +218,7 @@ export default function EditAssignmentModal({ isOpen, onClose, onSuccess, assign
           <div className="flex space-x-3 pt-4">
             <button
               type="submit"
-              disabled={isSubmitting || loadingCourses}
+              disabled={isSubmitting}
               className="flex-1 px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Updating...' : 'Update Assignment'}

@@ -40,11 +40,12 @@ export const searchCandidates = async (filters = {}) => {
   try {
     const { skills, minScore, projectType } = filters;
 
-    // Fetch all student profiles
+    // Fetch all student profiles visible in talent pool
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
-      .select('id, first_name, last_name, email, skills, bio, created_at')
-      .eq('role', 'student');
+      .select('id, first_name, last_name, email, skills, bio, interests, created_at')
+      .eq('role', 'student')
+      .eq('visibility_in_talent_pool', true);
 
     if (profileError) {
       logger.error('Error fetching profiles:', profileError);
@@ -125,7 +126,7 @@ export const getCandidateProfile = async (userId) => {
   try {
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('id, first_name, last_name, email, skills, bio, role')
+      .select('id, first_name, last_name, email, skills, bio, interests, role')
       .eq('id', userId)
       .eq('role', 'student')
       .single();

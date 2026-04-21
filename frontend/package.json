@@ -13,6 +13,8 @@
     "@hookform/resolvers": "^3.3.0",
     "axios": "^1.6.0",
     "date-fns": "^3.0.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "next": "^14.2.0",
     "qrcode.react": "^4.2.0",
     "react": "^18.3.0",

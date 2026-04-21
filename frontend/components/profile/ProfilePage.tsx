@@ -20,6 +20,8 @@ interface ProfileData {
   role: string;
   bio: string;
   skills: string;
+  interests: string;
+  visibility_in_talent_pool: boolean;
   profile_picture_url: string | null;
   avatar_url: string | null;
   emailVerified: boolean;
@@ -40,6 +42,8 @@ export default function ProfilePage() {
   const [lastName, setLastName] = useState('');
   const [bio, setBio] = useState('');
   const [skills, setSkills] = useState('');
+  const [interests, setInterests] = useState('');
+  const [visibleInTalentPool, setVisibleInTalentPool] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -63,6 +67,8 @@ export default function ProfilePage() {
       setLastName(data.lastName || '');
       setBio(data.bio || '');
       setSkills(data.skills || '');
+      setInterests(data.interests || '');
+      setVisibleInTalentPool(data.visibility_in_talent_pool ?? false);
     } catch (err: any) {
       setMsg({ type: 'error', text: err.message || 'Failed to load profile' });
     } finally {
@@ -93,6 +99,8 @@ export default function ProfilePage() {
       if (!isAdmin) {
         formData.append('bio', bio);
         formData.append('skills', skills);
+        formData.append('interests', interests);
+        formData.append('visibility_in_talent_pool', String(visibleInTalentPool));
       }
       if (avatarFile) formData.append('avatar', avatarFile);
 
@@ -129,6 +137,8 @@ export default function ProfilePage() {
       setLastName(profile.lastName || '');
       setBio(profile.bio || '');
       setSkills(profile.skills || '');
+      setInterests(profile.interests || '');
+      setVisibleInTalentPool(profile.visibility_in_talent_pool ?? false);
     }
     setAvatarFile(null);
     setAvatarPreview(null);
@@ -257,6 +267,24 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 )}
+                {profile?.interests && !isAdmin && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Interests</p>
+                    <div className="flex flex-wrap gap-2">
+                      {profile.interests.split(',').map(s => s.trim()).filter(Boolean).map((item, i) => (
+                        <span key={i} className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">{item}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {!isAdmin && user?.role === 'student' && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <div className={`w-3 h-3 rounded-full ${profile?.visibility_in_talent_pool ? 'bg-green-500' : 'bg-gray-300'}`} />
+                    <span className="text-xs text-gray-500">
+                      {profile?.visibility_in_talent_pool ? 'Visible to recruiters in Talent Pool' : 'Hidden from recruiter Talent Pool'}
+                    </span>
+                  </div>
+                )}
               </div>
             ) : (
               /* Edit mode */
@@ -290,6 +318,29 @@ export default function ProfilePage() {
                         className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-400"
                         placeholder="JavaScript, React, Python..." />
                     </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Interests <span className="text-gray-400 font-normal">(comma separated)</span></label>
+                      <input value={interests} onChange={e => setInterests(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-400"
+                        placeholder="Machine Learning, Open Source, UI Design..." />
+                    </div>
+
+                    {user?.role === 'student' && (
+                      <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-xl border border-purple-100">
+                        <input
+                          type="checkbox"
+                          id="talent-pool-visibility"
+                          checked={visibleInTalentPool}
+                          onChange={e => setVisibleInTalentPool(e.target.checked)}
+                          className="mt-0.5 w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-400"
+                        />
+                        <label htmlFor="talent-pool-visibility" className="text-sm text-gray-700 cursor-pointer">
+                          <span className="font-medium">Allow recruiters to view my profile in Talent Pool</span>
+                          <p className="text-xs text-gray-500 mt-0.5">When enabled, your profile will appear in recruiter searches and recommendations.</p>
+                        </label>
+                      </div>
+                    )}
                   </>
                 )}
 

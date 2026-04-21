@@ -115,6 +115,12 @@ export const signIn = async (credentials) => {
   const { email, password } = credentials;
 
   try {
+    // Sign out any existing Supabase session first.
+    // This prevents "session already exists" conflicts when switching accounts.
+    try {
+      await supabaseAuthClient.auth.signOut();
+    } catch { /* non-blocking — proceed even if signOut fails */ }
+
     // Step 1: Authenticate with Supabase using auth client
     const { data: authData, error: authError } = await supabaseAuthClient.auth.signInWithPassword({
       email,
@@ -122,7 +128,15 @@ export const signIn = async (credentials) => {
     });
 
     if (authError) {
-      logger.warn(`Failed login attempt for email: ${email}`);
+      logger.warn(`Failed login attempt for email: ${email} — ${authError.message}`);
+      // Surface specific Supabase errors so the frontend can show them
+      if (authError.message?.toLowerCase().includes('email not confirmed')) {
+        throw new UnauthorizedError('Please verify your email before logging in');
+      }
+      if (authError.message?.toLowerCase().includes('too many requests') ||
+          authError.status === 429) {
+        throw new UnauthorizedError('Too many login attempts. Please wait a moment and try again.');
+      }
       throw new UnauthorizedError('Invalid email or password');
     }
 

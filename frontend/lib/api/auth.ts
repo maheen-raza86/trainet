@@ -51,6 +51,12 @@ export const authAPI = {
     return apiClient.post('/auth/login', data);
   },
 
+  logout: async (): Promise<void> => {
+    // Tell the backend to sign out from Supabase so the server-side session is cleared.
+    // Errors are intentionally swallowed — the client-side cleanup already happened.
+    try { await apiClient.post('/auth/logout'); } catch { /* non-blocking */ }
+  },
+
   verifyEmail: async (token: string): Promise<any> => {
     return apiClient.post('/auth/verify-email', { token });
   },

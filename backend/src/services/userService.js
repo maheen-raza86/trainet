@@ -33,6 +33,8 @@ export const getUserProfile = async (userId) => {
       role: data.role,
       bio: data.bio,
       skills: data.skills,
+      interests: data.interests,
+      visibility_in_talent_pool: data.visibility_in_talent_pool ?? false,
       avatar_url: data.avatar_url,
       profile_picture_url: data.profile_picture_url,
       emailVerified: data.email_verified,
@@ -60,7 +62,7 @@ export const getUserProfile = async (userId) => {
  */
 export const updateUserProfile = async (userId, profileData) => {
   try {
-    const { firstName, lastName, bio, skills, avatar_url } = profileData;
+    const { firstName, lastName, bio, skills, avatar_url, interests, visibility_in_talent_pool } = profileData;
 
     // Build update object with only provided fields
     const updateData = {};
@@ -91,6 +93,14 @@ export const updateUserProfile = async (userId, profileData) => {
 
     if (skills !== undefined) {
       updateData.skills = skills;
+    }
+
+    if (interests !== undefined) {
+      updateData.interests = interests;
+    }
+
+    if (visibility_in_talent_pool !== undefined) {
+      updateData.visibility_in_talent_pool = Boolean(visibility_in_talent_pool);
     }
 
     if (avatar_url !== undefined) {
@@ -140,6 +150,8 @@ export const updateUserProfile = async (userId, profileData) => {
       role: data.role,
       bio: data.bio,
       skills: data.skills,
+      interests: data.interests,
+      visibility_in_talent_pool: data.visibility_in_talent_pool ?? false,
       avatar_url: data.avatar_url,
       profile_picture_url: data.profile_picture_url,
     };

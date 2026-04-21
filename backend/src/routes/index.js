@@ -20,6 +20,7 @@ import adminRoutes from './adminRoutes.js';
 import workPracticeRoutes from './workPracticeRoutes.js';
 import alumniRoutes from './alumniRoutes.js';
 import guidanceRoutes from './guidanceRoutes.js';
+import attendanceRoutes from './attendanceRoutes.js';
 import recruiterRoutes from './recruiterRoutes.js';
 import notificationRoutes from './notificationRoutes.js';
 import aiRoutes from './aiRoutes.js';
@@ -247,6 +248,12 @@ router.use('/alumni', alumniRoutes);
  * /api/guidance/*
  */
 router.use('/guidance', guidanceRoutes);
+
+/**
+ * Attendance routes
+ * /api/attendance/*
+ */
+router.use('/attendance', attendanceRoutes);
 
 /**
  * Recruiter / Talent Pool routes

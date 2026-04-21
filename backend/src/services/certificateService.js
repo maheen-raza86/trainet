@@ -16,8 +16,10 @@ import logger from '../utils/logger.js';
 import { BadRequestError, NotFoundError, ForbiddenError, ConflictError } from '../utils/errors.js';
 import { createNotification } from './notificationService.js';
 
-// Completion threshold: student must have submitted ≥ this % of assignments
-const COMPLETION_THRESHOLD = 60;
+// Completion threshold: 100% of required assignments submitted
+const COMPLETION_THRESHOLD = 100;
+// Attendance threshold: 85%
+const ATTENDANCE_THRESHOLD = 85;
 
 // Frontend base URL for verification links
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -77,44 +79,68 @@ export const checkEligibility = async (studentId, offeringId) => {
     .eq('offering_id', offeringId)
     .single();
 
-  if (!enrollment) return { eligible: false, completionPct: 0, averageScore: null };
+  if (!enrollment) return { eligible: false, completionPct: 0, attendancePct: 0, averageScore: null };
 
-  // Fetch assignments
+  // ── Required assignments: hours_per_week × duration_weeks ──────────────
+  const { data: offering } = await supabase
+    .from('course_offerings')
+    .select('hours_per_week, duration_weeks')
+    .eq('id', offeringId)
+    .single();
+
+  const required = (offering?.hours_per_week ?? 0) * (offering?.duration_weeks ?? 0);
+
+  console.log(`[CertEligibility] studentId=${studentId} offeringId=${offeringId}`);
+  console.log(`[CertEligibility] required=${required}`);
+
+  if (required === 0) {
+    return { eligible: true, completionPct: 100, attendancePct: 100, averageScore: null };
+  }
+
+  // ── Fetch assignment IDs ───────────────────────────────────────────────
   const { data: assignments } = await supabase
     .from('assignments')
     .select('id')
     .eq('course_offering_id', offeringId);
 
-  const total = (assignments || []).length;
-  if (total === 0) {
-    // No assignments → eligible by default (course has no work)
-    return { eligible: true, completionPct: 100, averageScore: null };
-  }
+  const assignmentIds = (assignments || []).map(a => a.id);
 
-  // Fetch student submissions for these assignments
-  const assignmentIds = assignments.map((a) => a.id);
+  // ── Fetch submissions ─────────────────────────────────────────────────
   const { data: submissions } = await supabase
     .from('submissions')
-    .select('id, assignment_id, grade, ai_score')
+    .select('id, final_score, ai_score')
     .eq('student_id', studentId)
-    .in('assignment_id', assignmentIds);
+    .in('assignment_id', assignmentIds.length > 0 ? assignmentIds : ['00000000-0000-0000-0000-000000000000']);
 
   const submitted = (submissions || []).length;
-  const completionPct = Math.round((submitted / total) * 100);
+  const completionPct = Math.min(100, Math.round((submitted / required) * 100));
 
-  // Average score (trainer grade preferred, fallback to AI score)
+  // ── Attendance ────────────────────────────────────────────────────────
+  const { data: attRecords } = await supabase
+    .from('attendance_records')
+    .select('status')
+    .eq('student_id', studentId)
+    .eq('offering_id', offeringId);
+
+  const totalSessions  = (attRecords || []).length;
+  const presentCount   = (attRecords || []).filter(r => r.status === 'present').length;
+  const attendancePct  = totalSessions > 0
+    ? Math.round((presentCount / totalSessions) * 100)
+    : 100; // no sessions recorded → treat as 100%
+
+  // ── Average score ─────────────────────────────────────────────────────
   const scores = (submissions || [])
-    .map((s) => s.grade ?? s.ai_score)
-    .filter((v) => v !== null && v !== undefined);
+    .map(s => s.final_score ?? s.ai_score)
+    .filter(v => v !== null && v !== undefined);
   const averageScore = scores.length > 0
     ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
     : null;
 
-  return {
-    eligible: completionPct >= COMPLETION_THRESHOLD,
-    completionPct,
-    averageScore,
-  };
+  const eligible = completionPct >= COMPLETION_THRESHOLD && attendancePct >= ATTENDANCE_THRESHOLD;
+
+  console.log(`[CertEligibility] submitted=${submitted} completionPct=${completionPct}% attendancePct=${attendancePct}% eligible=${eligible}`);
+
+  return { eligible, completionPct, attendancePct, averageScore };
 };
 
 // ─────────────────────────────────────────────
@@ -166,15 +192,15 @@ export const issueCertificate = async (studentId, offeringId, force = false) => 
 
   // Eligibility check
   if (!force) {
-    const { eligible, completionPct, averageScore } = await checkEligibility(studentId, offeringId);
+    const { eligible, completionPct } = await checkEligibility(studentId, offeringId);
     if (!eligible) {
       throw new ForbiddenError(
-        `Not eligible for certificate. Completion: ${completionPct}% (minimum ${COMPLETION_THRESHOLD}% required).`
+        `Not eligible for certificate. Completion: ${completionPct}% (minimum ${COMPLETION_THRESHOLD}% required) and attendance ≥ ${ATTENDANCE_THRESHOLD}% required.`
       );
     }
   }
 
-  const { eligible: _e, completionPct, averageScore } = await checkEligibility(studentId, offeringId);
+  const { completionPct, averageScore } = await checkEligibility(studentId, offeringId);
 
   // Generate unique certificate UUID
   const certificateUuid = randomUUID();

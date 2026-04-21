@@ -36,27 +36,43 @@ apiClient.interceptors.response.use(
     return response.data;
   },
   (error) => {
-    if (error.response?.status === 401) {
-      // Check if this is an authorization error (permission denied) vs authentication error (invalid token)
-      const errorMessage = error.response?.data?.message || '';
-      
-      // Don't logout for authorization/permission errors
+    const status = error.response?.status;
+    const requestUrl = error.config?.url || '';
+    const baseURL = error.config?.baseURL || '';
+    const fullUrl = baseURL + requestUrl;
+
+    // No response at all = backend is unreachable
+    if (!error.response) {
+      console.error(`[apiClient] Network error — no response from ${fullUrl}`, error.message);
+      return Promise.reject(
+        new Error('Cannot connect to server. Please ensure the backend is running on port 5000.')
+      );
+    }
+
+    const errorMessage = error.response?.data?.message || error.message || 'An error occurred';
+
+    // Log for debugging
+    console.error(`[apiClient] ${error.config?.method?.toUpperCase()} ${fullUrl} → ${status}:`, errorMessage);
+
+    if (status === 401) {
+      // NEVER auto-redirect when the failing request IS the login endpoint itself.
+      // That would cause a redirect loop and swallow the real error message.
+      const isLoginRequest = requestUrl.includes('/auth/login');
+      if (isLoginRequest) {
+        return Promise.reject(new Error(errorMessage));
+      }
+
       const isPermissionError = errorMessage.toLowerCase().includes('not authorized') ||
                                errorMessage.toLowerCase().includes('permission') ||
                                errorMessage.toLowerCase().includes('forbidden');
-      
-      // Only logout for actual authentication errors
+
       const isAuthError = errorMessage.toLowerCase().includes('invalid') ||
                          errorMessage.toLowerCase().includes('expired') ||
                          errorMessage.toLowerCase().includes('token') ||
                          errorMessage.toLowerCase().includes('authentication failed');
-      
-      // If it's clearly a permission error, don't logout
-      // If it's clearly an auth error, logout
-      // If unclear, check if we have a token - if yes, don't logout (assume permission error)
+
       if (typeof window !== 'undefined') {
         const hasToken = localStorage.getItem('token');
-        
         if (isAuthError || (!isPermissionError && !hasToken)) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
@@ -64,8 +80,16 @@ apiClient.interceptors.response.use(
         }
       }
     }
-    
-    const errorMessage = error.response?.data?.message || error.message || 'An error occurred';
+
+    // Surface rate-limit errors clearly
+    if (status === 429) {
+      const retryAfter = error.response?.headers?.['retry-after'];
+      const msg = retryAfter
+        ? `Too many attempts. Please wait ${retryAfter} seconds.`
+        : errorMessage;
+      return Promise.reject(new Error(msg));
+    }
+
     return Promise.reject(new Error(errorMessage));
   }
 );

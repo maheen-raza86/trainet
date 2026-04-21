@@ -49,9 +49,8 @@ export default function Sidebar({ role }: SidebarProps) {
     trainer: [
       { name: 'Dashboard', href: '/trainer/dashboard', icon: HomeIcon },
       { name: 'My Courses', href: '/trainer/courses', icon: AcademicCapIcon },
-      { name: 'Assignments', href: '/trainer/assignments', icon: DocumentTextIcon },
+      { name: 'My Students', href: '/trainer/students', icon: UsersIcon },
       { name: 'Work & Practice', href: '/trainer/work-practice', icon: ClipboardDocumentListIcon },
-      { name: 'Submissions', href: '/trainer/submissions', icon: SparklesIcon },
       { name: 'Profile', href: '/trainer/profile', icon: UserIcon },
     ],
     alumni: [
@@ -64,7 +63,6 @@ export default function Sidebar({ role }: SidebarProps) {
       { name: 'Dashboard', href: '/recruiter/dashboard', icon: HomeIcon },
       { name: 'Talent Pool', href: '/recruiter/talent', icon: UsersIcon },
       { name: 'Bookmarks', href: '/recruiter/bookmarks', icon: BriefcaseIcon },
-      { name: 'Messages', href: '/recruiter/messages/inbox', icon: SparklesIcon },
       { name: 'Profile', href: '/recruiter/profile', icon: UserIcon },
     ],
     admin: [

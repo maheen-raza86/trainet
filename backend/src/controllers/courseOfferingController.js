@@ -41,7 +41,11 @@ export const getCourseCatalog = async (req, res, next) => {
 export const createCourseOffering = async (req, res, next) => {
   try {
     const trainerId = req.user.id;
-    const { courseId, durationWeeks, hoursPerWeek, outline, startDate, endDate, registrationDeadline } = req.body;
+    const {
+      courseId, durationWeeks, hoursPerWeek, outline,
+      startDate, endDate, registrationDeadline,
+      weeklyDays, sessionStartTime, sessionEndTime,
+    } = req.body;
 
     const offering = await courseOfferingService.createCourseOffering(trainerId, {
       courseId,
@@ -51,6 +55,9 @@ export const createCourseOffering = async (req, res, next) => {
       startDate: startDate || null,
       endDate: endDate || null,
       registrationDeadline: registrationDeadline || null,
+      weeklyDays: weeklyDays || null,
+      sessionStartTime: sessionStartTime || null,
+      sessionEndTime: sessionEndTime || null,
     });
 
     logger.info(`Course offering created: ${offering.id} by trainer ${trainerId}`);
@@ -306,6 +313,21 @@ export const adminDeleteOffering = async (req, res, next) => {
         offering: result.data,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Drop a course offering (student only)
+ * POST /api/course-offerings/:id/drop
+ */
+export const dropCourse = async (req, res, next) => {
+  try {
+    const studentId = req.user.id;
+    const offeringId = req.params.id;
+    const result = await courseOfferingService.dropCourse(studentId, offeringId);
+    res.status(200).json({ success: true, message: 'Course dropped successfully', data: result });
   } catch (error) {
     next(error);
   }

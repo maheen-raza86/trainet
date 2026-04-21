@@ -158,10 +158,8 @@ export const updateAssignment = async (assignmentId, trainerId, updateData) => {
       throw new UnauthorizedError('You are not authorized to edit this assignment');
     }
 
-    // Prepare update object
-    const updateFields = {
-      updated_at: new Date().toISOString(),
-    };
+    // Prepare update object — only columns that exist in the assignments table
+    const updateFields = {};
 
     if (title !== undefined) updateFields.title = title;
     if (description !== undefined) updateFields.description = description;
@@ -176,8 +174,8 @@ export const updateAssignment = async (assignmentId, trainerId, updateData) => {
       .single();
 
     if (updateError) {
-      logger.error('Error updating assignment:', updateError);
-      throw new BadRequestError('Failed to update assignment');
+      logger.error('Error updating assignment:', updateError.message || updateError);
+      throw new BadRequestError(updateError.message || 'Failed to update assignment');
     }
 
     logger.info(`Assignment ${assignmentId} updated by trainer ${trainerId}`);

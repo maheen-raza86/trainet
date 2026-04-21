@@ -1,16 +1,17 @@
 'use client';
 
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import CertificateTemplate, { scoreToGrade } from '@/components/CertificateTemplate';
 import apiClient from '@/lib/api/client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { QRCodeSVG } from 'qrcode.react';
 import {
   TrophyIcon,
   AcademicCapIcon,
   ArrowTopRightOnSquareIcon,
-  CheckBadgeIcon,
-  ClockIcon,
+  PrinterIcon,
+  ArrowDownTrayIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 
 interface Certificate {
@@ -33,19 +34,26 @@ const FRONTEND_URL = process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3
 
 export default function StudentCertificates() {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [studentName, setStudentName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewCert, setViewCert] = useState<Certificate | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const certRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetchCertificates();
-  }, []);
+  useEffect(() => { fetchAll(); }, []);
 
-  const fetchCertificates = async () => {
+  const fetchAll = async () => {
     try {
       setLoading(true);
-      const res: any = await apiClient.get('/certificates/my');
-      setCertificates(res.data?.certificates || []);
+      const [certRes, profileRes]: any[] = await Promise.all([
+        apiClient.get('/certificates/my'),
+        apiClient.get('/users/profile').catch(() => null),
+      ]);
+      setCertificates(certRes.data?.certificates || []);
+      if (profileRes?.data) {
+        setStudentName(`${profileRes.data.firstName || ''} ${profileRes.data.lastName || ''}`.trim());
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load certificates');
     } finally {
@@ -53,10 +61,58 @@ export default function StudentCertificates() {
     }
   };
 
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const verificationUrl = (uuid: string) =>
+    `${FRONTEND_URL}/verify-certificate/${uuid}`;
 
-  const verificationUrl = (uuid: string) => `${FRONTEND_URL}/verify-certificate/${uuid}`;
+  const trainerName = (cert: Certificate) => {
+    const p = cert.course_offerings?.profiles;
+    return p ? `${p.first_name} ${p.last_name}` : undefined;
+  };
+
+  // ── Print: browser print dialog only ──────────────────────────────────
+  const handlePrint = () => window.print();
+
+  // ── Download PDF: html2canvas → jsPDF, landscape A4 ──────────────────
+  const handleDownloadPdf = async () => {
+    if (!certRef.current || !viewCert) return;
+    setDownloading(true);
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF }   = await import('jspdf');
+
+      const canvas = await html2canvas(certRef.current, {
+        scale: 3,           // high resolution
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      // A4 landscape in mm: 297 × 210
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+
+      // Scale image to fill the page while preserving aspect ratio
+      const imgW = canvas.width;
+      const imgH = canvas.height;
+      const ratio = Math.min(pageW / imgW, pageH / imgH);
+      const drawW = imgW * ratio;
+      const drawH = imgH * ratio;
+      const offsetX = (pageW - drawW) / 2;
+      const offsetY = (pageH - drawH) / 2;
+
+      pdf.addImage(imgData, 'PNG', offsetX, offsetY, drawW, drawH);
+
+      const safeName = viewCert.courses.title.replace(/[^a-zA-Z0-9]/g, '_');
+      pdf.save(`TRAINET_${safeName}_Certificate.pdf`);
+    } catch (err) {
+      console.error('PDF download failed:', err);
+      alert('PDF download failed. Please use Print instead.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -71,18 +127,16 @@ export default function StudentCertificates() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Certificates</h1>
-          <p className="text-gray-600 mt-1">Your earned certificates with QR verification</p>
-        </div>
+
+        {/* ── Header — subtitle removed ── */}
+        <h1 className="text-2xl font-bold text-gray-900">My Certificates</h1>
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">{error}</div>
         )}
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* ── Stats — only 2 cards (Valid removed) ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-white/30 flex items-center space-x-4">
             <div className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-xl flex items-center justify-center">
               <TrophyIcon className="w-6 h-6 text-white" />
@@ -93,27 +147,19 @@ export default function StudentCertificates() {
             </div>
           </div>
           <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-white/30 flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-green-400 to-emerald-400 rounded-xl flex items-center justify-center">
-              <CheckBadgeIcon className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Valid</p>
-              <p className="text-2xl font-bold text-gray-900">{certificates.filter(c => c.status === 'valid').length}</p>
-            </div>
-          </div>
-          <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-white/30 flex items-center space-x-4">
             <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-blue-400 rounded-xl flex items-center justify-center">
               <AcademicCapIcon className="w-6 h-6 text-white" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Avg Score</p>
+              <p className="text-sm text-gray-600">Best Grade</p>
               <p className="text-2xl font-bold text-gray-900">
                 {certificates.length > 0
-                  ? Math.round(
-                      certificates
-                        .filter(c => c.average_score !== null)
-                        .reduce((s, c) => s + (c.average_score || 0), 0) /
-                        Math.max(1, certificates.filter(c => c.average_score !== null).length)
+                  ? scoreToGrade(
+                      Math.max(
+                        ...certificates
+                          .filter(c => c.average_score !== null)
+                          .map(c => c.average_score as number)
+                      ) || null
                     )
                   : '—'}
               </p>
@@ -121,60 +167,74 @@ export default function StudentCertificates() {
           </div>
         </div>
 
-        {/* Certificates Grid */}
+        {/* ── Certificates Grid ── */}
         {certificates.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {certificates.map((cert) => (
-              <div key={cert.id} className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/30 overflow-hidden hover:shadow-lg transition">
-                {/* Certificate Banner */}
-                <div className="h-36 bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700 flex items-center justify-between px-6">
-                  <div className="text-white">
-                    <p className="text-xs font-medium text-white/70 uppercase tracking-wider mb-1">Certificate of Completion</p>
-                    <p className="text-lg font-bold leading-tight">{cert.courses.title}</p>
-                    {cert.status === 'revoked' && (
-                      <span className="mt-1 inline-block px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">Revoked</span>
-                    )}
-                  </div>
-                  {/* QR Code */}
-                  <div className="bg-white rounded-xl p-2 shadow-lg">
-                    <QRCodeSVG
-                      value={verificationUrl(cert.certificate_uuid)}
-                      size={72}
-                      level="H"
-                      fgColor="#1e1b4b"
+              <div
+                key={cert.id}
+                className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 cursor-pointer"
+                onClick={() => setViewCert(cert)}
+                title="Click to view full certificate"
+              >
+                {/* ── Thumbnail: clipped top portion of certificate ── */}
+                <div
+                  className="relative overflow-hidden"
+                  style={{ height: 110 }}
+                >
+                  {/* Scale the full template down and clip to show top section */}
+                  <div
+                    style={{
+                      transform: 'scale(0.38)',
+                      transformOrigin: 'top center',
+                      width: '263%',       // 100 / 0.38 ≈ 263
+                      marginLeft: '-81.5%', // center it: (263-100)/2
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <CertificateTemplate
+                      studentName={studentName || 'Student'}
+                      courseName={cert.courses.title}
+                      courseDescription={cert.courses.description}
+                      trainerName={trainerName(cert)}
+                      completionPercentage={cert.completion_percentage}
+                      averageScore={cert.average_score}
+                      issueDate={cert.issue_date}
+                      certificateUuid={cert.certificate_uuid}
+                      verificationUrl={verificationUrl(cert.certificate_uuid)}
+                      compact={false}
                     />
                   </div>
+                  {/* Fade-out gradient at bottom of thumbnail */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0"
+                    style={{
+                      height: 36,
+                      background: 'linear-gradient(to bottom, transparent, white)',
+                    }}
+                  />
                 </div>
 
-                {/* Details */}
-                <div className="p-5">
-                  <div className="space-y-2 text-sm text-gray-600 mb-4">
-                    <p className="flex items-center">
-                      <ClockIcon className="w-4 h-4 mr-2 text-gray-400" />
-                      Issued: {formatDate(cert.issue_date)}
+                {/* ── Card footer ── */}
+                <div className="px-3 py-2.5 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-gray-800 truncate leading-tight">
+                    {cert.courses.title}
+                  </p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-[11px] text-gray-500">
+                      Grade:{' '}
+                      <span className="font-semibold text-[#1a3a8f]">
+                        {scoreToGrade(cert.average_score)}
+                      </span>
                     </p>
-                    {cert.course_offerings?.profiles && (
-                      <p>👨‍🏫 {cert.course_offerings.profiles.first_name} {cert.course_offerings.profiles.last_name}</p>
-                    )}
-                    <p>📊 Completion: {cert.completion_percentage}%
-                      {cert.average_score !== null && ` · Score: ${cert.average_score}/100`}
-                    </p>
-                    <p className="text-xs text-gray-400 font-mono break-all">ID: {cert.certificate_uuid}</p>
-                  </div>
-
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={() => setViewCert(cert)}
-                      className="flex-1 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl text-sm font-medium hover:from-purple-600 hover:to-blue-600 transition"
-                    >
-                      View Certificate
-                    </button>
                     <Link
                       href={`/verify-certificate/${cert.certificate_uuid}`}
                       target="_blank"
-                      className="flex items-center justify-center px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm hover:bg-gray-50 transition"
+                      onClick={e => e.stopPropagation()}
+                      className="text-gray-400 hover:text-[#1a3a8f] transition"
+                      title="Verify online"
                     >
-                      <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                      <ArrowTopRightOnSquareIcon className="w-3 h-3" />
                     </Link>
                   </div>
                 </div>
@@ -186,92 +246,109 @@ export default function StudentCertificates() {
             <TrophyIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-gray-900 mb-2">No Certificates Yet</h3>
             <p className="text-gray-600 mb-6">Complete course assignments to earn certificates</p>
-            <Link href="/student/courses" className="inline-block px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl hover:from-purple-600 hover:to-blue-600 transition">
+            <Link
+              href="/student/courses"
+              className="inline-block px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl hover:from-purple-600 hover:to-blue-600 transition"
+            >
               Go to My Courses
             </Link>
           </div>
         )}
       </div>
 
-      {/* Certificate View Modal */}
+      {/* ── Full Certificate Modal ── */}
       {viewCert && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden">
-            {/* Certificate Document */}
-            <div className="bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-8 text-white text-center relative">
-              {/* Decorative border */}
-              <div className="absolute inset-3 border-2 border-white/20 rounded-2xl pointer-events-none" />
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="w-full max-w-3xl my-auto">
 
-              <div className="relative">
-                <p className="text-xs font-semibold tracking-[0.3em] text-white/60 uppercase mb-2">TRAINET</p>
-                <h2 className="text-2xl font-bold mb-1">Certificate of Completion</h2>
-                <p className="text-white/70 text-sm mb-6">This certifies that</p>
+            {/* Modal toolbar */}
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-white font-semibold text-sm">Certificate of Completion</p>
+              <div className="flex gap-2">
 
-                <p className="text-3xl font-bold text-yellow-300 mb-1">
-                  {/* Student name shown from cert data — fetched via API */}
-                  Course Graduate
-                </p>
+                {/* Print button — browser dialog only */}
+                <button
+                  onClick={handlePrint}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded-lg text-xs hover:bg-white/20 transition"
+                >
+                  <PrinterIcon className="w-3.5 h-3.5" />
+                  Print
+                </button>
 
-                <p className="text-white/70 text-sm mb-2">has successfully completed</p>
-                <p className="text-xl font-semibold text-white mb-1">{viewCert.courses.title}</p>
-                {viewCert.course_offerings?.profiles && (
-                  <p className="text-white/60 text-sm mb-4">
-                    Instructed by {viewCert.course_offerings.profiles.first_name} {viewCert.course_offerings.profiles.last_name}
-                  </p>
-                )}
+                {/* Download PDF button — html2canvas + jsPDF */}
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={downloading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#c9a84c] text-white rounded-lg text-xs hover:bg-[#b8943e] transition disabled:opacity-60"
+                >
+                  <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                  {downloading ? 'Generating…' : 'Download PDF'}
+                </button>
 
-                <div className="flex justify-center items-center space-x-8 mb-6">
-                  <div>
-                    <p className="text-xs text-white/50">Completion</p>
-                    <p className="text-lg font-bold">{viewCert.completion_percentage}%</p>
-                  </div>
-                  {viewCert.average_score !== null && (
-                    <div>
-                      <p className="text-xs text-white/50">Score</p>
-                      <p className="text-lg font-bold">{viewCert.average_score}/100</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-xs text-white/50">Issue Date</p>
-                    <p className="text-sm font-medium">{formatDate(viewCert.issue_date)}</p>
-                  </div>
-                </div>
+                {/* Verify Online */}
+                <Link
+                  href={`/verify-certificate/${viewCert.certificate_uuid}`}
+                  target="_blank"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded-lg text-xs hover:bg-white/20 transition"
+                >
+                  <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                  Verify Online
+                </Link>
 
-                {/* QR Code */}
-                <div className="flex justify-center">
-                  <div className="bg-white rounded-2xl p-3 shadow-xl">
-                    <QRCodeSVG
-                      value={verificationUrl(viewCert.certificate_uuid)}
-                      size={100}
-                      level="H"
-                      fgColor="#1e1b4b"
-                    />
-                  </div>
-                </div>
-                <p className="text-xs text-white/40 mt-2">Scan to verify authenticity</p>
-                <p className="text-xs text-white/30 font-mono mt-1">{viewCert.certificate_uuid}</p>
+                {/* Close */}
+                <button
+                  onClick={() => setViewCert(null)}
+                  className="flex items-center justify-center w-8 h-8 bg-white/10 border border-white/20 text-white rounded-lg hover:bg-white/20 transition"
+                >
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="p-5 flex space-x-3">
-              <Link
-                href={`/verify-certificate/${viewCert.certificate_uuid}`}
-                target="_blank"
-                className="flex-1 py-2 text-center border border-gray-200 text-gray-700 rounded-xl text-sm hover:bg-gray-50 transition"
-              >
-                Verify Online
-              </Link>
-              <button
-                onClick={() => setViewCert(null)}
-                className="flex-1 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl text-sm hover:from-purple-600 hover:to-blue-600 transition"
-              >
-                Close
-              </button>
+            {/* Certificate — captured by html2canvas for PDF */}
+            <div id="certificate-print-area" ref={certRef}>
+              <CertificateTemplate
+                studentName={studentName || 'Student'}
+                courseName={viewCert.courses.title}
+                courseDescription={viewCert.courses.description}
+                trainerName={trainerName(viewCert)}
+                completionPercentage={viewCert.completion_percentage}
+                averageScore={viewCert.average_score}
+                issueDate={viewCert.issue_date}
+                certificateUuid={viewCert.certificate_uuid}
+                verificationUrl={verificationUrl(viewCert.certificate_uuid)}
+                compact={false}
+              />
             </div>
+
+            {/* Revoked warning */}
+            {viewCert.status === 'revoked' && (
+              <div className="mt-3 p-3 bg-red-500/20 border border-red-400/30 rounded-xl text-center">
+                <p className="text-red-300 text-sm font-medium">
+                  ⚠ This certificate has been revoked and is no longer valid.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
+
+      {/* Print styles — only the certificate area, landscape A4 */}
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #certificate-print-area,
+          #certificate-print-area * { visibility: visible !important; }
+          #certificate-print-area {
+            position: fixed !important;
+            top: 0; left: 0;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 9999;
+          }
+          @page { size: A4 landscape; margin: 0; }
+        }
+      `}</style>
     </DashboardLayout>
   );
 }

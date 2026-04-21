@@ -125,9 +125,20 @@ export const login = async (req, res, next) => {
 };
 
 /**
- * Request password reset via Supabase Auth
- * POST /api/auth/forgot-password
+ * Sign out — clears the Supabase session on the server side
+ * POST /api/auth/logout
  */
+export const logout = async (req, res, next) => {
+  try {
+    // Sign out from Supabase auth client so the session is invalidated server-side.
+    // This prevents stale sessions from interfering with the next login.
+    await supabaseAuthClient.auth.signOut();
+    res.status(200).json({ success: true, message: 'Logged out successfully' });
+  } catch (error) {
+    // Non-critical — always return success so the client can proceed
+    res.status(200).json({ success: true, message: 'Logged out' });
+  }
+};
 export const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;

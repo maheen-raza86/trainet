@@ -100,6 +100,7 @@ export const getStudentEnrollments = async (studentId) => {
       `)
       .eq('student_id', studentId)
       .not('offering_id', 'is', null)
+      .neq('status', 'dropped')
       .order('enrolled_at', { ascending: false });
 
     if (!offeringError && offeringEnrollments && offeringEnrollments.length > 0) {
