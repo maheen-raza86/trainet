@@ -11,6 +11,7 @@ import {
   ExclamationTriangleIcon,
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
+import { getSessionStatus, SESSION_STATUS_BADGE, SESSION_STATUS_LABEL } from '@/lib/sessionStatus';
 
 interface Session {
   id: string;
@@ -121,9 +122,15 @@ export default function AlumniSessionsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-semibold text-gray-800 truncate">{session.title}</p>
-                      <span className={`shrink-0 px-2 py-0.5 text-xs rounded-full border capitalize ${STATUS_BADGE[session.status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-                        {session.status}
-                      </span>
+                      {/* Always compute status from time — never trust stale DB value */}
+                      {(() => {
+                        const cs = getSessionStatus(session.start_date, session.end_date);
+                        return (
+                          <span className={`shrink-0 px-2 py-0.5 text-xs rounded-full border ${SESSION_STATUS_BADGE[cs]}`}>
+                            {SESSION_STATUS_LABEL[cs]}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <p className="text-sm text-gray-600">{session.topic}</p>
                     {session.profiles && (

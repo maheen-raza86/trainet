@@ -120,6 +120,183 @@ router.get('/search', async (req, res) => {
 });
 
 /**
+ * Public top candidates endpoint for talent pool preview (no auth required)
+ * GET /api/public/top-candidates
+ * Returns top 6 real students ranked by score (certs + grades + completed courses)
+ */
+router.get('/public/top-candidates', async (req, res) => {
+  try {
+    // 1. Fetch all students
+    const { data: students, error: studentsError } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .eq('role', 'student');
+
+    if (studentsError || !students || students.length === 0) {
+      return res.status(200).json({ success: true, data: { candidates: [] } });
+    }
+
+    // 2. Fetch certificates (with course title for skill tags)
+    const { data: allCerts } = await supabase
+      .from('certificates')
+      .select('student_id, average_score, courses(title)')
+      .eq('status', 'valid');
+
+    // 3. Fetch completed enrollments (with course title for skill tags)
+    const { data: allEnrollments } = await supabase
+      .from('enrollments')
+      .select('student_id, progress, course_offerings(courses(title))')
+      .gte('progress', 80);
+
+    // 4. Fetch graded submissions for avg grade
+    const { data: allSubmissions } = await supabase
+      .from('submissions')
+      .select('student_id, grade, ai_score')
+      .not('grade', 'is', null);
+
+    // Helper: extract keyword tags from a course title
+    const extractTags = (title) => {
+      if (!title) return [];
+      const lower = title.toLowerCase();
+      const tagMap = [
+        ['react',           'React'],
+        ['angular',         'Angular'],
+        ['vue',             'Vue.js'],
+        ['node',            'Node.js'],
+        ['javascript',      'JavaScript'],
+        ['typescript',      'TypeScript'],
+        ['python',          'Python'],
+        ['java',            'Java'],
+        ['spring',          'Spring Boot'],
+        ['django',          'Django'],
+        ['flask',           'Flask'],
+        ['machine learning','Machine Learning'],
+        ['deep learning',   'Deep Learning'],
+        ['data science',    'Data Science'],
+        ['data analysis',   'Data Analysis'],
+        ['ai',              'AI'],
+        ['nlp',             'NLP'],
+        ['cybersecurity',   'Cybersecurity'],
+        ['security',        'Security'],
+        ['networking',      'Networking'],
+        ['linux',           'Linux'],
+        ['cloud',           'Cloud'],
+        ['aws',             'AWS'],
+        ['azure',           'Azure'],
+        ['devops',          'DevOps'],
+        ['docker',          'Docker'],
+        ['kubernetes',      'Kubernetes'],
+        ['database',        'Database'],
+        ['sql',             'SQL'],
+        ['postgresql',      'PostgreSQL'],
+        ['mongodb',         'MongoDB'],
+        ['ui',              'UI/UX'],
+        ['ux',              'UI/UX'],
+        ['figma',           'Figma'],
+        ['mobile',          'Mobile Dev'],
+        ['flutter',         'Flutter'],
+        ['kotlin',          'Kotlin'],
+        ['swift',           'Swift'],
+        ['system admin',    'SysAdmin'],
+        ['administration',  'SysAdmin'],
+        ['blockchain',      'Blockchain'],
+        ['web',             'Web Dev'],
+        ['frontend',        'Frontend'],
+        ['backend',         'Backend'],
+        ['fullstack',       'Full Stack'],
+        ['full stack',      'Full Stack'],
+        ['testing',         'Testing'],
+        ['qa',              'QA'],
+        ['agile',           'Agile'],
+        ['scrum',           'Scrum'],
+      ];
+      const found = [];
+      for (const [keyword, label] of tagMap) {
+        if (lower.includes(keyword) && !found.includes(label)) {
+          found.push(label);
+        }
+      }
+      // Fallback: use first 2 words of title as tag if nothing matched
+      if (found.length === 0) {
+        const words = title.split(/\s+/).slice(0, 2).join(' ');
+        if (words) found.push(words);
+      }
+      return found.slice(0, 3);
+    };
+
+    // 5. Build per-student maps
+    const certsByStudent = {};
+    for (const c of (allCerts || [])) {
+      if (!certsByStudent[c.student_id]) certsByStudent[c.student_id] = [];
+      certsByStudent[c.student_id].push(c);
+    }
+
+    const enrollmentsByStudent = {};
+    for (const e of (allEnrollments || [])) {
+      if (!enrollmentsByStudent[e.student_id]) enrollmentsByStudent[e.student_id] = [];
+      enrollmentsByStudent[e.student_id].push(e);
+    }
+
+    const gradesByStudent = {};
+    for (const s of (allSubmissions || [])) {
+      if (!gradesByStudent[s.student_id]) gradesByStudent[s.student_id] = [];
+      const val = s.grade ?? s.ai_score;
+      if (val !== null && val !== undefined) gradesByStudent[s.student_id].push(Number(val));
+    }
+
+    // 6. Score and enrich each student
+    const candidates = [];
+    for (const student of students) {
+      const certs = certsByStudent[student.id] || [];
+      const enrollments = enrollmentsByStudent[student.id] || [];
+      const grades = gradesByStudent[student.id] || [];
+
+      // Only include students with at least 1 cert OR 1 completed course
+      if (certs.length === 0 && enrollments.length === 0) continue;
+
+      const certCount = certs.length;
+      const completedCourses = enrollments.length;
+      const avgGrade = grades.length > 0
+        ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length)
+        : (certs.length > 0 ? Math.round(certs.reduce((a, c) => a + (c.average_score || 0), 0) / certs.length) : 0);
+
+      // Score: cert weight 40%, grade weight 40%, completed courses 20%
+      const certScore  = Math.min(certCount / 3, 1) * 40;
+      const gradeScore = (avgGrade / 100) * 40;
+      const courseScore = Math.min(completedCourses / 3, 1) * 20;
+      const totalScore = Math.round(certScore + gradeScore + courseScore);
+
+      // Collect skill tags from course titles
+      const tagSet = new Set();
+      for (const c of certs) {
+        for (const tag of extractTags(c.courses?.title)) tagSet.add(tag);
+      }
+      for (const e of enrollments) {
+        const title = e.course_offerings?.courses?.title;
+        for (const tag of extractTags(title)) tagSet.add(tag);
+      }
+      const skills = [...tagSet].slice(0, 4);
+
+      candidates.push({
+        name: `${student.first_name} ${student.last_name[0]}.`,
+        first_name: student.first_name,
+        certs: certCount,
+        score: totalScore,
+        skills,
+      });
+    }
+
+    // 7. Sort by score DESC, take top 6
+    candidates.sort((a, b) => b.score - a.score);
+    const top6 = candidates.slice(0, 6);
+
+    return res.status(200).json({ success: true, data: { candidates: top6 } });
+  } catch (err) {
+    return res.status(200).json({ success: true, data: { candidates: [] } });
+  }
+});
+
+/**
  * Public stats endpoint for landing page (no auth required)
  * GET /api/public/stats
  */

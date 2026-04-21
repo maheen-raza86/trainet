@@ -13,6 +13,7 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
+import { getSessionStatus, SESSION_STATUS_BADGE, SESSION_STATUS_LABEL } from '@/lib/sessionStatus';
 
 interface Session {
   id: string;
@@ -34,13 +35,6 @@ interface Material {
   file_url: string;
   type: string;
 }
-
-const STATUS_BADGE: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-  active: 'bg-blue-100 text-blue-700 border-blue-200',
-  completed: 'bg-green-100 text-green-700 border-green-200',
-  cancelled: 'bg-red-100 text-red-700 border-red-200',
-};
 
 const MATERIAL_TYPE_BADGE: Record<string, string> = {
   pdf: 'bg-red-100 text-red-700',
@@ -228,7 +222,9 @@ export default function AlumniSessionDetailPage() {
     );
   }
 
-  const isEnded = session.status === 'completed' || session.status === 'cancelled';
+  // Always compute status from real time — never trust stale DB value
+  const computedStatus = getSessionStatus(session.start_date, session.end_date);
+  const isEnded = computedStatus === 'ended';
 
   return (
     <DashboardLayout title={session.title} subtitle={session.topic}>
@@ -257,8 +253,8 @@ export default function AlumniSessionDetailPage() {
             </div>
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Status</p>
-              <span className={`inline-block px-2 py-0.5 text-xs rounded-full border capitalize ${STATUS_BADGE[session.status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-                {session.status}
+              <span className={`inline-block px-2 py-0.5 text-xs rounded-full border capitalize ${SESSION_STATUS_BADGE[computedStatus]}`}>
+                {SESSION_STATUS_LABEL[computedStatus]}
               </span>
             </div>
             {session.profiles && (

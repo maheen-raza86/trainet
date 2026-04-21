@@ -8,6 +8,7 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isOffline: boolean;
   login: (data: LoginData) => Promise<void>;
   signup: (data: SignupData) => Promise<void>;
   logout: () => void;
@@ -29,6 +30,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
+
+  // Detect online/offline state
+  useEffect(() => {
+    const handleOffline = () => setIsOffline(true);
+    const handleOnline  = () => setIsOffline(false);
+    // Set initial state
+    setIsOffline(typeof navigator !== 'undefined' && !navigator.onLine);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online',  handleOnline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online',  handleOnline);
+    };
+  }, []);
 
   // Load token and user from localStorage on mount
   useEffect(() => {
@@ -48,17 +64,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (data: LoginData) => {
-    // Always clear stale state before a new login so a previous user's
-    // token never bleeds into the new session.
-    clearAuthStorage();
-    setToken(null);
-    setUser(null);
-
+    // Do NOT clear existing session before the network request completes.
+    // If the user is offline or the request fails, their current session
+    // must be preserved so they are not logged out unexpectedly.
     try {
       const response = await authAPI.login(data);
 
       if (response.success && response.data) {
         const { accessToken, user: userData } = response.data;
+        // Only clear old session once we have a confirmed new one
+        clearAuthStorage();
         setToken(accessToken);
         setUser(userData);
         localStorage.setItem('token', accessToken);
@@ -68,7 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error: any) {
       console.error('[AuthContext] login error:', error);
-      // Re-throw so the login page can display the real message
+      // Re-throw so the login page can display the real message.
+      // Do NOT clear auth state here — the user may already be logged in
+      // and just tried to switch accounts while offline.
       throw error;
     }
   };
@@ -109,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     token,
     isAuthenticated: !!token && !!user,
     isLoading,
+    isOffline,
     login,
     signup,
     logout,

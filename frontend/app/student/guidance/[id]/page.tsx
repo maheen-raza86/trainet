@@ -15,6 +15,7 @@ import {
   StarIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
+import { getSessionStatus, SESSION_STATUS_BADGE, SESSION_STATUS_LABEL } from '@/lib/sessionStatus';
 
 interface Material {
   id: string;
@@ -126,6 +127,12 @@ export default function StudentSessionDetailPage() {
     : 'Unknown Alumni';
   const alumniId = session?.alumni?.id || session?.alumni_profiles?.id || session?.alumni_id;
 
+  // Always compute status from time — never trust the stale DB value
+  const computedStatus = getSessionStatus(session?.start_date, session?.end_date);
+  const isEnded   = computedStatus === 'ended';
+  const isActive  = computedStatus === 'active';
+  const canJoin   = isActive && !!session?.meeting_link;
+
   if (loading) {
     return (
       <DashboardLayout title="Session Details" subtitle="">
@@ -170,8 +177,8 @@ export default function StudentSessionDetailPage() {
               <h2 className="text-xl font-semibold text-gray-800">{session.title}</h2>
               <p className="text-gray-600 mt-0.5">{session.topic}</p>
             </div>
-            <span className={`px-3 py-1 text-xs rounded-full border capitalize shrink-0 ${statusBadge(session.status)}`}>
-              {session.status}
+            <span className={`px-3 py-1 text-xs rounded-full border capitalize shrink-0 ${SESSION_STATUS_BADGE[computedStatus]}`}>
+              {SESSION_STATUS_LABEL[computedStatus]}
             </span>
           </div>
 
@@ -218,17 +225,26 @@ export default function StudentSessionDetailPage() {
           ) : (
             <p className="text-sm text-gray-400">No meeting link provided.</p>
           )}
-          {session.status === 'active' && session.meeting_link ? (
+          {canJoin ? (
             <a
-              href={session.meeting_link}
+              href={session.meeting_link!}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block px-5 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl text-sm hover:from-purple-600 hover:to-blue-600 transition"
+              className="inline-block px-5 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl text-sm hover:from-green-600 hover:to-emerald-600 transition font-medium"
             >
               Join Session
             </a>
+          ) : isEnded ? (
+            <div className="space-y-1">
+              <button disabled className="px-5 py-2 bg-gray-200 text-gray-400 rounded-xl text-sm cursor-not-allowed font-medium">
+                Session Ended
+              </button>
+              <p className="text-xs text-gray-400">This guidance session has already ended.</p>
+            </div>
           ) : (
-            <p className="text-sm text-gray-400 italic">Session not yet active</p>
+            <p className="text-sm text-gray-400 italic">
+              {computedStatus === 'upcoming' ? 'Session has not started yet.' : 'No meeting link provided.'}
+            </p>
           )}
         </div>
 

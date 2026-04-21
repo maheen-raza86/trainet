@@ -1,18 +1,38 @@
 'use client';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BriefcaseIcon, SparklesIcon, MagnifyingGlassIcon, StarIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import PublicLayout, { PageHero, WaveDivider, AngleDivider, CurveDivider } from '@/components/public/PublicLayout';
 
-const DEMO = [
-  { name:'Ahmed K.',  skills:['Python','Machine Learning','Data Science'], score:94, certs:3 },
-  { name:'Sara M.',   skills:['React','TypeScript','Node.js'],             score:91, certs:2 },
-  { name:'Omar F.',   skills:['Cybersecurity','Networking','Linux'],       score:88, certs:4 },
-  { name:'Fatima R.', skills:['UI/UX','Figma','Prototyping'],              score:86, certs:2 },
-  { name:'Ali H.',    skills:['Java','Spring Boot','PostgreSQL'],          score:83, certs:3 },
-  { name:'Zara N.',   skills:['Cloud','AWS','DevOps'],                     score:81, certs:2 },
-];
+interface Candidate {
+  name: string;
+  first_name: string;
+  certs: number;
+  score: number;
+  skills: string[];
+}
 
 export default function TalentPoolPage() {
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [loadingCandidates, setLoadingCandidates] = useState(true);
+
+  useEffect(() => {
+    const fetchCandidates = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/public/top-candidates`
+        );
+        const json = await res.json();
+        setCandidates(json?.data?.candidates || []);
+      } catch {
+        setCandidates([]);
+      } finally {
+        setLoadingCandidates(false);
+      }
+    };
+    fetchCandidates();
+  }, []);
+
   return (
     <PublicLayout>
       <PageHero
@@ -82,28 +102,65 @@ export default function TalentPoolPage() {
         <div className="container mx-auto max-w-5xl">
           <div className="text-center mb-10 reveal">
             <h2 className="text-2xl font-black text-slate-900 mb-2">Top Candidates Preview</h2>
-            <p className="text-slate-500 text-sm">Sample profiles from the TRAINET talent pool</p>
+            <p className="text-slate-500 text-sm">Top-ranked profiles from the TRAINET talent pool</p>
           </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
-            {DEMO.map((c,i)=>(
-              <div key={i} className="reveal bg-white rounded-2xl p-5 border border-slate-200 hover:border-purple-200 hover:-translate-y-1 hover:shadow-xl transition-all cursor-default"
-                style={{boxShadow:'0 2px 12px rgba(0,0,0,0.05)'}}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">{c.name[0]}</div>
-                  <div className="flex items-center gap-1 text-amber-500 font-bold text-sm">
-                    <StarIcon className="w-4 h-4 fill-amber-400"/>{c.score}%
+
+          {loadingCandidates ? (
+            /* Skeleton loaders while fetching */
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1,2,3,4,5,6].map(i => (
+                <div key={i} className="bg-white rounded-2xl p-5 border border-slate-200 animate-pulse"
+                  style={{boxShadow:'0 2px 12px rgba(0,0,0,0.05)'}}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 bg-slate-200 rounded-full"/>
+                    <div className="w-12 h-4 bg-slate-200 rounded"/>
+                  </div>
+                  <div className="w-24 h-4 bg-slate-200 rounded mb-2"/>
+                  <div className="w-16 h-3 bg-slate-100 rounded mb-3"/>
+                  <div className="flex gap-1">
+                    <div className="w-14 h-5 bg-slate-100 rounded-full"/>
+                    <div className="w-16 h-5 bg-slate-100 rounded-full"/>
+                    <div className="w-12 h-5 bg-slate-100 rounded-full"/>
                   </div>
                 </div>
-                <p className="font-bold text-slate-900 mb-1">{c.name}</p>
-                <p className="text-slate-400 text-xs mb-3">{c.certs} certificate{c.certs!==1?'s':''}</p>
-                <div className="flex flex-wrap gap-1">
-                  {c.skills.map((s,j)=>(
-                    <span key={j} className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">{s}</span>
-                  ))}
+              ))}
+            </div>
+          ) : candidates.length === 0 ? (
+            <div className="text-center py-12 text-slate-400 text-sm">
+              No candidates available yet. Check back soon.
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
+              {candidates.map((c, i) => (
+                <div key={i} className="reveal bg-white rounded-2xl p-5 border border-slate-200 hover:border-purple-200 hover:-translate-y-1 hover:shadow-xl transition-all cursor-default"
+                  style={{boxShadow:'0 2px 12px rgba(0,0,0,0.05)'}}>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                      {c.first_name?.[0]?.toUpperCase() ?? '?'}
+                    </div>
+                    <div className="flex items-center gap-1 text-amber-500 font-bold text-sm">
+                      <StarIcon className="w-4 h-4 fill-amber-400"/>{c.score}%
+                    </div>
+                  </div>
+                  <p className="font-bold text-slate-900 mb-1">{c.name}</p>
+                  <p className="text-slate-400 text-xs mb-3">
+                    {c.certs} certificate{c.certs !== 1 ? 's' : ''}
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {c.skills.length > 0
+                      ? c.skills.map((s, j) => (
+                          <span key={j} className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">{s}</span>
+                        ))
+                      : (
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs rounded-full">Trainee</span>
+                        )
+                    }
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
+
           <div className="text-center mt-12 reveal">
             <Link href="/signup"
               className="btn-shimmer inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full font-bold hover:from-indigo-600 hover:to-purple-600 transition-all hover:scale-105 text-sm cursor-pointer"

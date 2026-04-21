@@ -31,6 +31,12 @@ router.get('/:taskId/submissions', verifyToken, authorizeRoles('trainer'), wpCon
 // Grade a submission
 router.put('/submissions/:id/grade', verifyToken, authorizeRoles('trainer'), wpController.gradeSubmission);
 
+// AI evaluate a submission (trainer-triggered)
+router.post('/submissions/:id/evaluate', verifyToken, authorizeRoles('trainer'), wpController.runAiEvaluation);
+
+// Finalize a submission (trainer override)
+router.put('/submissions/:id/finalize', verifyToken, authorizeRoles('trainer'), wpController.finalizeSubmission);
+
 // ── Student routes ─────────────────────────────────────────────────────────
 
 // Get tasks visible to the student
@@ -38,6 +44,9 @@ router.get('/', verifyToken, authorizeRoles('student'), wpController.getStudentT
 
 // Get student's own submissions
 router.get('/my-submissions', verifyToken, authorizeRoles('student'), wpController.getMySubmissions);
+
+// Get a specific student submission by ID (student's own)
+router.get('/my-submissions/:id', verifyToken, authorizeRoles('student'), wpController.getMySubmissionById);
 
 // Submit a task (with optional file)
 router.post('/:id/submit', verifyToken, authorizeRoles('student'), upload.single('file'), wpController.submitTask);

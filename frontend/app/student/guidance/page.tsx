@@ -10,6 +10,7 @@ import {
   CheckCircleIcon, ExclamationTriangleIcon, AcademicCapIcon,
   CalendarIcon, ArrowRightIcon, XMarkIcon,
 } from '@heroicons/react/24/outline';
+import { getSessionStatus, SESSION_STATUS_BADGE, SESSION_STATUS_LABEL } from '@/lib/sessionStatus';
 
 /* ── Types ── */
 interface AlumniProfile {
@@ -313,6 +314,10 @@ export default function StudentGuidancePage() {
             <div className="space-y-3">
               {sessions.map(s => {
                 const alumniName = s.profiles ? `${s.profiles.first_name} ${s.profiles.last_name}` : 'Unknown Alumni';
+                // Always compute status from time — never trust stale DB value
+                const computedStatus = getSessionStatus(s.start_date, (s as any).end_date);
+                const isEnded  = computedStatus === 'ended';
+                const isActive = computedStatus === 'active';
                 return (
                   <div key={s.id} className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/30 p-5 hover:bg-white/80 transition cursor-pointer"
                     onClick={() => router.push(`/student/guidance/${s.id}`)}>
@@ -320,7 +325,9 @@ export default function StudentGuidancePage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <p className="font-semibold text-gray-800">{s.title}</p>
-                          <span className={`px-2 py-0.5 text-xs rounded-full border capitalize shrink-0 ${badge(s.status)}`}>{s.status}</span>
+                          <span className={`px-2 py-0.5 text-xs rounded-full border shrink-0 ${SESSION_STATUS_BADGE[computedStatus]}`}>
+                            {SESSION_STATUS_LABEL[computedStatus]}
+                          </span>
                         </div>
                         <p className="text-sm text-gray-600">{s.topic}</p>
                         <p className="text-sm text-gray-500 mt-1">{alumniName}</p>
@@ -330,12 +337,17 @@ export default function StudentGuidancePage() {
                         </p>
                       </div>
                       <div className="flex flex-col gap-2 shrink-0 items-end">
-                        {s.status === 'active' && s.meeting_link && (
+                        {isActive && s.meeting_link && (
                           <a href={s.meeting_link} target="_blank" rel="noopener noreferrer"
                             onClick={e => e.stopPropagation()}
-                            className="px-3 py-1.5 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600 transition">
+                            className="px-3 py-1.5 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600 transition font-medium">
                             Join Meeting
                           </a>
+                        )}
+                        {isEnded && (
+                          <span className="px-3 py-1.5 bg-gray-100 text-gray-400 text-xs rounded-lg cursor-default">
+                            Session Ended
+                          </span>
                         )}
                         <ArrowRightIcon className="w-4 h-4 text-gray-400" />
                       </div>

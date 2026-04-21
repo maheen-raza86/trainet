@@ -5,6 +5,8 @@
 
 import * as wpService from '../services/workPracticeService.js';
 import { BadRequestError } from '../utils/errors.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
 // ── Tasks ──────────────────────────────────────────────────────────────────
 
@@ -72,6 +74,27 @@ export const submitTask = async (req, res, next) => {
     const { submissionContent } = req.body;
     const file = req.file;
 
+    // Fetch task type for validation
+    let taskType = 'other';
+    try {
+      const taskRes = await wpService.getTaskById(taskId);
+      taskType = (taskRes?.task_type || 'other').toLowerCase();
+    } catch { /* proceed */ }
+
+    // For project/coding: if a file is uploaded, it must be a ZIP
+    if (file && (taskType === 'project' || taskType === 'coding')) {
+      const ext = require('path').extname(file.originalname).toLowerCase();
+      if (ext !== '.zip') {
+        // Delete the uploaded non-zip file
+        try { require('fs').unlinkSync(file.path); } catch { /* ignore */ }
+        return res.status(400).json({
+          success: false,
+          message: 'For Project and Coding tasks, please upload a ZIP file containing your code.',
+          error: 'Validation Error',
+        });
+      }
+    }
+
     let fileUrl = null, fileName = null, fileSize = null;
     if (file) {
       fileUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/uploads/${file.filename}`;
@@ -113,5 +136,39 @@ export const gradeSubmission = async (req, res, next) => {
     const { grade, feedback } = req.body;
     const submission = await wpService.gradeSubmission(req.params.id, req.user.id, { grade, feedback });
     res.status(200).json({ success: true, message: 'Submission graded', data: submission });
+  } catch (error) { next(error); }
+};
+
+// ── AI Evaluation ──────────────────────────────────────────────────────────
+
+export const runAiEvaluation = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const trainerId = req.user.id;
+    console.log(`[WP Controller] runAiEvaluation submissionId=${id} trainerId=${trainerId}`);
+    const submission = await wpService.runAiEvaluation(id, trainerId);
+    res.status(200).json({ success: true, message: 'AI evaluation completed', data: submission });
+  } catch (error) {
+    console.error('[WP Controller] runAiEvaluation error:', error.message);
+    next(error);
+  }
+};
+
+export const finalizeSubmission = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { finalScore, trainerFeedback } = req.body;
+    const trainerId = req.user.id;
+    const submission = await wpService.finalizeWpSubmission(id, trainerId, { finalScore, trainerFeedback });
+    res.status(200).json({ success: true, message: 'Submission finalized', data: submission });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMySubmissionById = async (req, res, next) => {
+  try {
+    const submission = await wpService.getMySubmissionById(req.params.id, req.user.id);
+    res.status(200).json({ success: true, data: submission });
   } catch (error) { next(error); }
 };
