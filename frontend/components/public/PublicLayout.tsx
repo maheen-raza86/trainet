@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Bars3Icon, XMarkIcon, ChevronDownIcon, EnvelopeIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import BrandLogo from '@/components/BrandLogo';
 
 /* ── Shared nav data ── */
 const TRACKS = [
@@ -130,8 +131,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       {/* ── Navbar ── */}
       <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${scrollY>60?'nav-glass shadow-2xl':'bg-transparent'}`}>
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="text-xl font-black text-white tracking-tight">
-            TRAIN<span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">ET</span>
+          <Link href="/" className="flex items-center">
+            <BrandLogo size="md" />
           </Link>
           <div className="hidden lg:flex items-center space-x-1">
             <NavDropdown label="Courses" items={TRACKS.map(t=>({label:t.title,href:`/courses/${t.slug}`,icon:t.icon}))}/>
@@ -210,7 +211,9 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         <div className="container mx-auto">
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
             <div>
-              <p className="text-white font-black text-lg mb-3">TRAIN<span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">ET</span></p>
+              <Link href="/" className="inline-flex items-center mb-3">
+                <BrandLogo size="sm" />
+              </Link>
               <p className="text-white/30 text-sm mb-4 leading-relaxed">Next-generation AI-powered learning platform.</p>
               <Link href="/about" className="text-purple-400 hover:text-purple-300 text-sm transition-colors">About us →</Link>
             </div>

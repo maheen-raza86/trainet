@@ -3,6 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense } from 'react';
+import BrandLogo from '@/components/BrandLogo';
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
@@ -13,7 +14,9 @@ function VerifyEmailContent() {
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">TRAINET</h1>
+          <div className="flex justify-center">
+            <BrandLogo size="lg" stacked textClassName="text-gray-900" />
+          </div>
         </div>
 
         {/* Verification Card */}

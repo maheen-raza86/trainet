@@ -20,6 +20,7 @@ import {
   SparklesIcon,
   ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
+import BrandLogo from '@/components/BrandLogo';
 
 interface SidebarProps {
   role: 'student' | 'trainer' | 'alumni' | 'recruiter' | 'admin';
@@ -85,13 +86,11 @@ export default function Sidebar({ role }: SidebarProps) {
       <div className="relative z-10 flex flex-col h-full">
         {/* Logo */}
         <div className="h-20 flex items-center justify-between px-6 border-b border-white/10">
-          <Link href={`/${role}/dashboard`} className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-400 to-blue-400 rounded-xl flex items-center justify-center shadow-lg">
-              <SparklesIcon className="w-6 h-6 text-white" />
-            </div>
-            {!isCollapsed && (
-              <span className="text-2xl font-bold text-white">TRAINET</span>
-            )}
+          <Link href={`/${role}/dashboard`} className="flex items-center">
+            {isCollapsed
+              ? <BrandLogo size="sm" iconOnly />
+              : <BrandLogo size="md" />
+            }
           </Link>
           
           {/* Collapse button */}

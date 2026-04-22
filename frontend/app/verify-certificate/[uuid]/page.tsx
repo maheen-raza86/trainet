@@ -12,6 +12,7 @@ import {
   ClockIcon,
   UserIcon,
 } from '@heroicons/react/24/outline';
+import BrandLogo from '@/components/BrandLogo';
 
 interface VerificationResult {
   status: 'VALID' | 'INVALID' | 'REVOKED';
@@ -77,8 +78,10 @@ function VerificationContent() {
       <div className="w-full max-w-2xl">
         {/* TRAINET Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="text-3xl font-bold text-white">TRAINET</Link>
-          <p className="text-white/60 text-sm mt-1">Certificate Verification System</p>
+          <Link href="/" className="inline-flex justify-center">
+            <BrandLogo size="lg" stacked />
+          </Link>
+          <p className="text-white/60 text-sm mt-2">Certificate Verification System</p>
         </div>
 
         {/* Status Card */}

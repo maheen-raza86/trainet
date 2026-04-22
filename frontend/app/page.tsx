@@ -6,6 +6,7 @@ import {
   SparklesIcon, ArrowRightIcon, EnvelopeIcon,
   Bars3Icon, XMarkIcon, ChevronDownIcon,
 } from '@heroicons/react/24/outline';
+import BrandLogo from '@/components/BrandLogo';
 
 const CertStack = dynamic(() => import('@/components/CertStack'), { ssr: false });
 
@@ -508,8 +509,8 @@ export default function HomePage() {
       {/* ══ NAVBAR ══ */}
       <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${scrollY>60?'nav-glass shadow-2xl':'bg-transparent'}`}>
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="text-xl font-black text-white tracking-tight">
-            TRAIN<span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">ET</span>
+          <Link href="/" className="flex items-center">
+            <BrandLogo size="md" />
           </Link>
 
           <div className="hidden lg:flex items-center space-x-1">
@@ -912,9 +913,9 @@ export default function HomePage() {
         <div className="container mx-auto">
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
             <div>
-              <p className="text-white font-black text-xl mb-4">
-                TRAIN<span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">ET</span>
-              </p>
+              <Link href="/" className="inline-flex mb-4">
+                <BrandLogo size="sm" />
+              </Link>
               <p className="text-white/30 text-sm mb-5 leading-relaxed">Next-generation AI-powered learning platform for industry-ready professionals.</p>
               <Link href="/about" className="text-purple-400 hover:text-purple-300 text-sm transition-colors">About us →</Link>
             </div>

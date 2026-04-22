@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import BrandLogo from '@/components/BrandLogo';
 
 interface SignupFormData {
   firstName: string;
@@ -54,10 +55,9 @@ export default function SignupPage() {
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-r from-purple-400 to-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-2xl">
-            <span className="text-white text-3xl font-bold">T</span>
+          <div className="flex justify-center mb-4">
+            <BrandLogo size="lg" stacked />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2">TRAINET</h1>
           <p className="text-white/80">Create your account and start learning today.</p>
         </div>
 
