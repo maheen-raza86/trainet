@@ -137,7 +137,6 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           <div className="hidden lg:flex items-center space-x-1">
             <NavDropdown label="Courses" items={TRACKS.map(t=>({label:t.title,href:`/courses/${t.slug}`,icon:t.icon}))}/>
             <NavDropdown label="Features" items={FEATURES.map(f=>({label:f.title,href:f.href,icon:f.icon}))}/>
-            <Link href="/alumni"       className="px-4 py-2 text-white/70 hover:text-white text-sm transition-colors rounded-lg hover:bg-white/5">Alumni</Link>
             <Link href="/courses"      className="px-4 py-2 text-white/70 hover:text-white text-sm transition-colors rounded-lg hover:bg-white/5">Active Courses</Link>
             <Link href="/about"        className="px-4 py-2 text-white/70 hover:text-white text-sm transition-colors rounded-lg hover:bg-white/5">About Us</Link>
             <button onClick={scrollToContact} className="px-4 py-2 text-white/70 hover:text-white text-sm transition-colors rounded-lg hover:bg-white/5">Contact</button>
@@ -154,7 +153,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         {mobileOpen&&(
           <div className="lg:hidden border-t border-white/10 px-6 py-4 space-y-1"
             style={{background:'rgba(7,7,26,0.98)',backdropFilter:'blur(20px)'}}>
-            {[['Courses','/courses'],['Alumni','/alumni'],['Active Courses','/courses'],['About Us','/about'],['Help','/help']].map(([l,h])=>(
+            {[['Courses','/courses'],['Active Courses','/courses'],['About Us','/about'],['Help','/help']].map(([l,h])=>(
               <Link key={l} href={h} onClick={()=>setMobileOpen(false)}
                 className="block px-3 py-2.5 text-white/70 hover:text-white text-sm rounded-xl hover:bg-white/5 transition-colors">{l}</Link>
             ))}
@@ -226,7 +225,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             </div>
             <div>
               <h3 className="text-white font-bold mb-4 text-sm">Community</h3>
-              <ul className="space-y-2">{[['Alumni Network','/alumni'],['Mentorship','/mentorship'],['Recruiters','/recruiter']].map(([l,h])=>(
+              <ul className="space-y-2">{[['Mentorship','/mentorship'],['Recruiters','/recruiter']].map(([l,h])=>(
                 <li key={l}><Link href={h} className="text-white/30 hover:text-white transition-colors text-sm">{l}</Link></li>
               ))}</ul>
             </div>

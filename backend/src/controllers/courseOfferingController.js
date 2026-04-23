@@ -41,6 +41,8 @@ export const getCourseCatalog = async (req, res, next) => {
 export const createCourseOffering = async (req, res, next) => {
   try {
     const trainerId = req.user.id;
+    // Extract JWT so the service can set auth.uid() for RLS WITH CHECK evaluation
+    const jwt = req.headers.authorization?.substring(7) || null;
     const {
       courseId, durationWeeks, hoursPerWeek, outline,
       startDate, endDate, registrationDeadline,
@@ -58,7 +60,7 @@ export const createCourseOffering = async (req, res, next) => {
       weeklyDays: weeklyDays || null,
       sessionStartTime: sessionStartTime || null,
       sessionEndTime: sessionEndTime || null,
-    });
+    }, jwt);
 
     logger.info(`Course offering created: ${offering.id} by trainer ${trainerId}`);
 

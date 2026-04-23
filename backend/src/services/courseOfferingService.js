@@ -5,6 +5,8 @@
 
 import supabase from '../config/supabaseClient.js';
 import { supabaseAdminClient } from '../config/supabaseClient.js';
+import { createClient } from '@supabase/supabase-js';
+import config from '../config/env.js';
 import logger from '../utils/logger.js';
 import { BadRequestError, NotFoundError, ConflictError, ForbiddenError } from '../utils/errors.js';
 import { createNotification } from './notificationService.js';
@@ -43,7 +45,7 @@ export const getCourseCatalog = async () => {
  * @param {Object} offeringData - Course offering data
  * @returns {Promise<Object>} Created course offering
  */
-export const createCourseOffering = async (trainerId, offeringData) => {
+export const createCourseOffering = async (trainerId, offeringData, jwt = null) => {
   try {
     const {
       courseId, durationWeeks, hoursPerWeek, outline,
@@ -129,8 +131,16 @@ export const createCourseOffering = async (trainerId, offeringData) => {
       throw new ConflictError('You already have an active offering for this course. Close it before creating a new one.');
     }
 
-    // Create course offering
-    const { data, error } = await supabase
+    // Create course offering — use a JWT-scoped client so auth.uid() is set
+    // correctly for RLS WITH CHECK evaluation. Falls back to admin client if no JWT.
+    const insertClient = jwt
+      ? createClient(config.supabase.url, config.supabase.anonKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+          global: { headers: { Authorization: `Bearer ${jwt}` } },
+        })
+      : supabaseAdminClient;
+
+    const { data, error } = await insertClient
       .from('course_offerings')
       .insert([
         {

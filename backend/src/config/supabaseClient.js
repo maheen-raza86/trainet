@@ -1,6 +1,9 @@
 /**
  * Supabase Client Configuration
  * Initialize and export Supabase clients
+ *
+ * DO NOT COMMIT API KEYS — USE ENV VARIABLES ONLY
+ * All credentials must be set in backend/.env (never hardcoded here)
  */
 
 import { createClient } from '@supabase/supabase-js';

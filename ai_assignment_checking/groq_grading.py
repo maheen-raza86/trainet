@@ -1,6 +1,9 @@
 # ============================================================
 # TRAINET - AI Assignment Grading using Groq API
 # Model: llama-3.3-70b-versatile
+#
+# DO NOT COMMIT API KEYS — USE ENV VARIABLES ONLY
+# GROQ_API_KEY must be set in ai_assignment_checking/.env
 # ============================================================
 
 import os
