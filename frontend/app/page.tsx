@@ -3,10 +3,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
-  SparklesIcon, ArrowRightIcon, EnvelopeIcon,
-  Bars3Icon, XMarkIcon, ChevronDownIcon,
+  SparklesIcon, ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import BrandLogo from '@/components/BrandLogo';
+import PublicLayout, { WaveDivider, AngleDivider, CurveDivider } from '@/components/public/PublicLayout';
 
 const CertStack = dynamic(() => import('@/components/CertStack'), { ssr: false });
 
@@ -87,103 +87,7 @@ function TiltCard({ children, className = '', style }: { children: React.ReactNo
   );
 }
 
-/* ── Dividers ── */
-const WaveDivider = ({ fromDark, toDark }: { fromDark: boolean; toDark: boolean }) => (
-  <div className="relative h-16 overflow-hidden pointer-events-none"
-    style={{ background: fromDark ? '#07071a' : '#f6f3ef' }}>
-    <svg viewBox="0 0 1440 64" className="absolute bottom-0 w-full" preserveAspectRatio="none">
-      <path d="M0,32 C360,64 1080,0 1440,32 L1440,64 L0,64 Z"
-        fill={toDark ? '#07071a' : '#f6f3ef'} />
-    </svg>
-  </div>
-);
-const AngleDivider = ({ fromDark, toDark }: { fromDark: boolean; toDark: boolean }) => (
-  <div className="relative h-14 overflow-hidden pointer-events-none"
-    style={{ background: fromDark ? '#07071a' : '#f6f3ef' }}>
-    <svg viewBox="0 0 1440 56" className="absolute bottom-0 w-full" preserveAspectRatio="none">
-      <path d="M0,0 L1440,56 L1440,56 L0,56 Z" fill={toDark ? '#07071a' : '#f6f3ef'} />
-    </svg>
-  </div>
-);
-const CurveDivider = ({ fromDark, toDark }: { fromDark: boolean; toDark: boolean }) => (
-  <div className="relative h-16 overflow-hidden pointer-events-none"
-    style={{ background: fromDark ? '#07071a' : '#f6f3ef' }}>
-    <svg viewBox="0 0 1440 64" className="absolute bottom-0 w-full" preserveAspectRatio="none">
-      <path d="M0,64 C480,0 960,64 1440,16 L1440,64 L0,64 Z"
-        fill={toDark ? '#07071a' : '#f6f3ef'} />
-    </svg>
-  </div>
-);
-
-/* ══════════════════════════════════════════
-   NAV DROPDOWN
-══════════════════════════════════════════ */
-function NavDropdown({ label, items }: {
-  label: string;
-  items: { label: string; href: string; icon: string }[];
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const show = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    setOpen(true);
-  };
-  // small delay so mouse can travel from button into panel without closing
-  const hide = () => {
-    closeTimer.current = setTimeout(() => setOpen(false), 120);
-  };
-
-  // close on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  return (
-    <div ref={ref} className="relative" onMouseEnter={show} onMouseLeave={hide}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1 px-4 py-2 text-white/70 hover:text-white text-sm transition-colors rounded-lg hover:bg-white/5">
-        {label}
-        <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {/* invisible bridge so mouse can move from button to panel */}
-      {open && <div className="absolute top-full left-0 w-full h-2" onMouseEnter={show} />}
-
-      <div
-        onMouseEnter={show}
-        onMouseLeave={hide}
-        className="absolute top-[calc(100%+8px)] left-0 w-56 rounded-2xl border border-white/10 overflow-hidden z-50"
-        style={{
-          background: 'rgba(10,10,30,0.97)',
-          backdropFilter: 'blur(20px)',
-          boxShadow: '0 16px 40px rgba(0,0,0,0.4)',
-          opacity: open ? 1 : 0,
-          transform: open ? 'translateY(0) scale(1)' : 'translateY(-8px) scale(0.97)',
-          pointerEvents: open ? 'all' : 'none',
-          transition: 'opacity 0.18s ease, transform 0.18s ease',
-          transformOrigin: 'top left',
-        }}>
-        {items.map(item => (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-3 px-4 py-3 text-white/65 hover:text-white hover:bg-white/6 text-sm transition-colors">
-            <span className="text-base">{item.icon}</span>
-            {item.label}
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
+/* ── Dividers are imported from PublicLayout ── */
 
 /* ══════════════════════════════════════════
    TRACK CAROUSEL
@@ -458,13 +362,10 @@ function TrackCarousel() {
    PAGE
 ══════════════════════════════════════════ */
 export default function HomePage() {
-  const [scrollY, setScrollY]   = useState(0);
   const [visible, setVisible]   = useState(false);
   const [stats, setStats]       = useState({ total_users:0, total_students:0, total_courses:0, total_certificates:0 });
   const [alumni, setAlumni]     = useState<any[]>([]);
   const [loading, setLoading]   = useState(true);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const contactRef  = useRef<HTMLDivElement>(null);
   const heroRef     = useRef<HTMLDivElement>(null);
   const statsInView = useInView();
   const [mouse, setMouse] = useState({ x: 0, y: 0 });
@@ -475,8 +376,6 @@ export default function HomePage() {
   const c4 = useCountUp(stats.total_certificates, 2000, statsInView.inView);
 
   useEffect(() => {
-    const onScroll = () => setScrollY(window.scrollY);
-    window.addEventListener('scroll', onScroll, { passive: true });
     setVisible(true);
     fetch(API + '/public/stats')
       .then(r => r.json())
@@ -485,7 +384,7 @@ export default function HomePage() {
     const els = document.querySelectorAll('.reveal');
     const obs = new IntersectionObserver(entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }), { threshold: 0.1 });
     els.forEach(el => obs.observe(el));
-    return () => { window.removeEventListener('scroll', onScroll); obs.disconnect(); };
+    return () => { obs.disconnect(); };
   }, []);
 
   const onHeroMouse = useCallback((e: React.MouseEvent) => {
@@ -493,8 +392,6 @@ export default function HomePage() {
     const r = heroRef.current.getBoundingClientRect();
     setMouse({ x: (e.clientX-r.left)/r.width-0.5, y: (e.clientY-r.top)/r.height-0.5 });
   }, []);
-
-  const scrollToContact = () => { contactRef.current?.scrollIntoView({ behavior:'smooth' }); setMobileOpen(false); };
 
   const statItems = [
     { label:'Active Learners', val: loading?'—': statsInView.inView&&c1>0?String(c1):String(stats.total_students||0) },
@@ -504,55 +401,7 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ background:'#07071a' }}>
-
-      {/* ══ NAVBAR ══ */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${scrollY>60?'nav-glass shadow-2xl':'bg-transparent'}`}>
-        <div className="container mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <BrandLogo size="md" />
-          </Link>
-
-          <div className="hidden lg:flex items-center space-x-1">
-            {/* Courses dropdown */}
-            <NavDropdown label="Courses" items={TRACKS.map(t=>({ label: t.title, href: `/courses/${t.slug}`, icon: t.icon }))} />
-
-            {/* Features dropdown */}
-            <NavDropdown label="Features" items={FEATURES.map(f=>({ label: f.title, href: f.href, icon: f.icon }))} />
-
-            <Link href="/alumni"     className="px-4 py-2 text-white/70 hover:text-white text-sm transition-colors rounded-lg hover:bg-white/5">Alumni</Link>
-            <Link href="/talent-pool"className="px-4 py-2 text-white/70 hover:text-white text-sm transition-colors rounded-lg hover:bg-white/5">Talent Pool</Link>
-            <button onClick={scrollToContact} className="px-4 py-2 text-white/70 hover:text-white text-sm transition-colors rounded-lg hover:bg-white/5">Contact</button>
-          </div>
-
-          <div className="hidden lg:flex items-center gap-3">
-            <Link href="/login" className="px-4 py-2 text-white/70 hover:text-white text-sm transition-colors">Login</Link>
-            <Link href="/signup" className="btn-shimmer px-5 py-2.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full text-sm font-bold hover:from-purple-600 hover:to-blue-600 transition-all hover:scale-105"
-              style={{ boxShadow:'0 0 20px rgba(139,92,246,0.4)' }}>
-              Get Started
-            </Link>
-          </div>
-
-          <button onClick={()=>setMobileOpen(!mobileOpen)} className="lg:hidden p-2 text-white/70 hover:text-white">
-            {mobileOpen ? <XMarkIcon className="w-6 h-6"/> : <Bars3Icon className="w-6 h-6"/>}
-          </button>
-        </div>
-
-        {mobileOpen && (
-          <div className="lg:hidden border-t border-white/10 px-6 py-4 space-y-1"
-            style={{ background:'rgba(7,7,26,0.98)', backdropFilter:'blur(20px)' }}>
-            {[['Courses','/courses'],['Alumni','/alumni'],['Talent Pool','/talent-pool'],['About','/about'],['Help','/help']].map(([l,h])=>(
-              <Link key={l} href={h} onClick={()=>setMobileOpen(false)}
-                className="block px-3 py-2.5 text-white/70 hover:text-white text-sm rounded-xl hover:bg-white/5 transition-colors">{l}</Link>
-            ))}
-            <button onClick={scrollToContact} className="block w-full text-left px-3 py-2.5 text-white/70 hover:text-white text-sm rounded-xl hover:bg-white/5">Contact</button>
-            <div className="pt-3 border-t border-white/10 flex gap-3">
-              <Link href="/login"  onClick={()=>setMobileOpen(false)} className="flex-1 py-2.5 text-center text-white/70 border border-white/20 rounded-xl text-sm">Login</Link>
-              <Link href="/signup" onClick={()=>setMobileOpen(false)} className="flex-1 py-2.5 text-center bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl text-sm font-bold">Get Started</Link>
-            </div>
-          </div>
-        )}
-      </nav>
+    <PublicLayout>
 
       {/* ══ HERO — dark navy ══ */}
       <section ref={heroRef} onMouseMove={onHeroMouse}
@@ -738,9 +587,17 @@ export default function HomePage() {
                   <TiltCard className="h-full rounded-2xl border p-6 cursor-pointer bg-white border-slate-200 hover:border-purple-200 hover:shadow-xl">
                     <div className="relative z-10">
                       <div className="flex items-center gap-4 mb-4">
-                        <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-black text-lg shrink-0"
+                        <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-black text-lg shrink-0 overflow-hidden"
                           style={{ boxShadow:'0 0 18px rgba(139,92,246,0.35)' }}>
-                          {a.profiles?.first_name?.[0]}{a.profiles?.last_name?.[0]}
+                          {a.profiles?.profile_picture_url || a.profiles?.avatar_url ? (
+                            <img
+                              src={a.profiles.profile_picture_url || a.profiles.avatar_url}
+                              alt={`${a.profiles?.first_name} ${a.profiles?.last_name}`}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <>{a.profiles?.first_name?.[0]}{a.profiles?.last_name?.[0]}</>
+                          )}
                         </div>
                         <div>
                           <p className="font-black text-slate-900">{a.profiles?.first_name} {a.profiles?.last_name}</p>
@@ -836,52 +693,6 @@ export default function HomePage() {
       {/* light → dark */}
       <CurveDivider fromDark={false} toDark={true}/>
 
-      {/* ══ CONTACT — dark ══ */}
-      <section ref={contactRef} id="contact" className="py-24 px-6 relative" style={{ background:'#07071a' }}>
-        <div className="container mx-auto relative z-10">
-          <div className="text-center mb-14 reveal">
-            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-semibold mb-4"
-              style={{ background:'rgba(139,92,246,0.12)', border:'1px solid rgba(139,92,246,0.28)', color:'#c4b5fd' }}>
-              GET IN TOUCH
-            </span>
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Contact Us</h2>
-            <p className="text-white/40 text-sm">We would love to hear from you</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-5 max-w-xl mx-auto">
-            <a href="mailto:trainet8688@gmail.com"
-              className="group flex items-center gap-4 rounded-2xl p-6 border transition-all hover:-translate-y-1"
-              style={{ background:'rgba(255,255,255,0.03)', borderColor:'rgba(255,255,255,0.07)' }}
-              onMouseEnter={e=>(e.currentTarget.style.borderColor='rgba(139,92,246,0.4)')}
-              onMouseLeave={e=>(e.currentTarget.style.borderColor='rgba(255,255,255,0.07)')}>
-              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center shrink-0"
-                style={{ boxShadow:'0 0 18px rgba(139,92,246,0.4)' }}>
-                <EnvelopeIcon className="w-6 h-6 text-white"/>
-              </div>
-              <div>
-                <p className="text-white/35 text-xs mb-0.5">Email</p>
-                <p className="text-white font-semibold text-sm group-hover:text-purple-300 transition-colors">trainet8688@gmail.com</p>
-              </div>
-            </a>
-
-            <a href="https://wa.me/923055334284" target="_blank" rel="noopener noreferrer"
-              className="group flex items-center gap-4 rounded-2xl p-6 border transition-all hover:-translate-y-1"
-              style={{ background:'rgba(255,255,255,0.03)', borderColor:'rgba(255,255,255,0.07)' }}
-              onMouseEnter={e=>(e.currentTarget.style.borderColor='rgba(16,185,129,0.4)')}
-              onMouseLeave={e=>(e.currentTarget.style.borderColor='rgba(255,255,255,0.07)')}>
-              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shrink-0"
-                style={{ boxShadow:'0 0 18px rgba(16,185,129,0.4)' }}>
-                <span className="text-white text-xl">💬</span>
-              </div>
-              <div>
-                <p className="text-white/35 text-xs mb-0.5">WhatsApp</p>
-                <p className="text-white font-semibold text-sm group-hover:text-green-300 transition-colors">03055334284</p>
-              </div>
-            </a>
-          </div>
-        </div>
-      </section>
-
       {/* ══ CTA BANNER — dark ══ */}
       <section className="py-24 px-6 relative overflow-hidden"
         style={{ background:'linear-gradient(135deg,#1a0836 0%,#0a1628 50%,#0d0a2e 100%)' }}>
@@ -908,48 +719,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══ FOOTER — dark ══ */}
-      <footer className="py-16 px-6 border-t" style={{ background:'#050510', borderColor:'rgba(255,255,255,0.06)' }}>
-        <div className="container mx-auto">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
-            <div>
-              <Link href="/" className="inline-flex mb-4">
-                <BrandLogo size="sm" />
-              </Link>
-              <p className="text-white/30 text-sm mb-5 leading-relaxed">Next-generation AI-powered learning platform for industry-ready professionals.</p>
-              <Link href="/about" className="text-purple-400 hover:text-purple-300 text-sm transition-colors">About us →</Link>
-            </div>
-            <div>
-              <h3 className="text-white font-bold mb-5 text-sm">Platform</h3>
-              <ul className="space-y-3">
-                {[['Courses','/courses'],['Certificates','/certificates'],['Talent Pool','/talent-pool'],['Alumni','/alumni']].map(([l,h])=>(
-                  <li key={l}><Link href={h} className="text-white/30 hover:text-white transition-colors text-sm">{l}</Link></li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-white font-bold mb-5 text-sm">Community</h3>
-              <ul className="space-y-3">
-                {[['Alumni Network','/alumni'],['Mentorship','/mentorship'],['Recruiters','/recruiter']].map(([l,h])=>(
-                  <li key={l}><Link href={h} className="text-white/30 hover:text-white transition-colors text-sm">{l}</Link></li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-white font-bold mb-5 text-sm">Support</h3>
-              <ul className="space-y-3">
-                {[['Help Center','/help'],['Privacy Policy','/privacy'],['Terms','/terms']].map(([l,h])=>(
-                  <li key={l}><Link href={h} className="text-white/30 hover:text-white transition-colors text-sm">{l}</Link></li>
-                ))}
-                <li><button onClick={scrollToContact} className="text-white/30 hover:text-white transition-colors text-sm">Contact</button></li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t pt-8 text-center" style={{ borderColor:'rgba(255,255,255,0.06)' }}>
-            <p className="text-white/15 text-xs">© 2026 TRAINET. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </PublicLayout>
   );
 }

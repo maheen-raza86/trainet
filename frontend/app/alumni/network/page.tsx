@@ -37,12 +37,14 @@ export default function AlumniNetworkPage() {
 
   const fetchAlumni = async () => {
     try {
-      const res: any = await apiClient.get('/alumni');
-      const all: AlumniProfile[] = res.data?.alumni || [];
-      // Exclude self
-      const others = all.filter(a => a.profiles?.id !== user?.id);
-      setAlumni(others);
-      setFiltered(others);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/public/stats`);
+      const json = await res.json();
+      if (json.success) {
+        const all: AlumniProfile[] = json.data?.alumni || [];
+        const others = all.filter(a => a.profiles?.id !== user?.id);
+        setAlumni(others);
+        setFiltered(others);
+      }
     } catch { /* ignore */ } finally {
       setLoading(false);
     }

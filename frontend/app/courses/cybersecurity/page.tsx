@@ -9,6 +9,7 @@ export default function CybersecurityPage() {
       duration="8–12 Weeks"
       difficulty="Intermediate"
       icon="🛡️"
+      heroImage="/Cybersecurity.png"
       overview="This course covers the full spectrum of cybersecurity — from foundational concepts to advanced penetration testing techniques used by professional ethical hackers. You'll learn to think like an attacker to defend like a pro."
       whyMatters="Cybersecurity is one of the fastest-growing fields globally. Every organization needs security professionals. Certified ethical hackers command top salaries and are in constant demand across all industries."
       outcomes={[

@@ -9,6 +9,7 @@ export default function NetworkingPage() {
       duration="6–8 Weeks"
       difficulty="Beginner"
       icon="🌐"
+      heroImage="/Networking.png"
       overview="This CCNA-aligned course takes you from zero networking knowledge to configuring enterprise-grade routers and switches. You'll work with Cisco Packet Tracer to simulate real network environments."
       whyMatters="Networking is the backbone of every IT infrastructure. CCNA-certified professionals are required in every organization — from small businesses to global enterprises. It's the gateway to a career in IT."
       outcomes={[

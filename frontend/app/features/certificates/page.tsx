@@ -36,21 +36,12 @@ export default function CertificatesPage() {
       <section className="py-20 px-6 relative" style={{background:'#07071a'}}>
         <div className="absolute inset-0 pointer-events-none"
           style={{background:'radial-gradient(ellipse at 50% 30%,rgba(16,185,129,0.07) 0%,transparent 60%)'}}/>
-        <div className="container mx-auto max-w-3xl relative z-10 space-y-5">
-          <div className="reveal rounded-2xl p-6 border" style={{background:'rgba(255,255,255,0.03)',borderColor:'rgba(255,255,255,0.07)'}}>
-            <h2 className="text-xl font-black text-white mb-4">Verification Flow</h2>
-            <div className="space-y-2 text-white/65 text-sm leading-relaxed">
-              <p>1. Student completes ≥60% of course assignments → certificate auto-issued.</p>
-              <p>2. Certificate contains a unique UUID and QR code linking to the verification page.</p>
-              <p>3. Employer scans QR → system checks UUID → returns: VALID, REVOKED, or INVALID.</p>
-              <p>4. Every verification is logged for audit purposes.</p>
-            </div>
-          </div>
-          <div className="text-center pt-4 reveal">
-            <Link href="/verify-certificate/demo"
+        <div className="container mx-auto max-w-3xl relative z-10 text-center">
+          <div className="reveal pt-4">
+            <Link href="/signup"
               className="btn-shimmer inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full font-bold hover:from-green-600 hover:to-emerald-600 transition-all hover:scale-105 text-sm"
               style={{boxShadow:'0 0 28px rgba(16,185,129,0.38)'}}>
-              Try Verification <ArrowRightIcon className="w-4 h-4"/>
+              Join as Student to Earn Certificate <ArrowRightIcon className="w-4 h-4"/>
             </Link>
           </div>
         </div>

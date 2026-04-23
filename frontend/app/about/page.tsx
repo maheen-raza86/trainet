@@ -1,7 +1,8 @@
 'use client';
 import Link from 'next/link';
-import { SparklesIcon, CpuChipIcon, UsersIcon, ShieldCheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { CpuChipIcon, UsersIcon, ShieldCheckIcon, ArrowRightIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import PublicLayout, { PageHero, WaveDivider, AngleDivider } from '@/components/public/PublicLayout';
+import BrandLogo from '@/components/BrandLogo';
 
 const SECTIONS = [
   { icon: <CpuChipIcon className="w-6 h-6 text-purple-400"/>, title:'Our Vision', accent:'text-purple-400',
@@ -18,7 +19,7 @@ export default function AboutPage() {
   return (
     <PublicLayout>
       <PageHero
-        icon={<SparklesIcon className="w-8 h-8"/>}
+        icon={<BrandLogo iconOnly size="sm" />}
         title="About TRAINET"
         subtitle="A next-generation AI-powered learning and career development ecosystem"
         accent="from-purple-500 to-blue-500"

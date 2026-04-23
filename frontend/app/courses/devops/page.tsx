@@ -9,6 +9,7 @@ export default function DevOpsPage() {
       duration="8–10 Weeks"
       difficulty="Intermediate"
       icon="⚙️"
+      heroImage="/Devops.png"
       overview="This bootcamp-style course covers the complete DevOps lifecycle — from Linux fundamentals to production-grade Kubernetes deployments. You'll build real pipelines and deploy real applications."
       whyMatters="DevOps engineers bridge development and operations, enabling faster, more reliable software delivery. Companies of all sizes are hiring DevOps professionals to modernize their infrastructure."
       outcomes={[

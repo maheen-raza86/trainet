@@ -9,6 +9,7 @@ export default function SystemAdminPage() {
       duration="6–8 Weeks"
       difficulty="Beginner"
       icon="🖥️"
+      heroImage="/Systemadministration.png"
       overview="This course covers the essential skills of a system administrator — managing Windows and Linux servers, configuring Active Directory, automating tasks with PowerShell, and maintaining enterprise IT infrastructure."
       whyMatters="Every organization needs system administrators to keep their IT infrastructure running. Sysadmins are the backbone of enterprise IT, managing everything from user accounts to server security."
       outcomes={[

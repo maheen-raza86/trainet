@@ -81,7 +81,14 @@ export default function StudentGuidancePage() {
   }, [search, alumni]);
 
   const fetchAlumni = async () => {
-    try { const r: any = await apiClient.get('/alumni'); setAlumni(r.data?.alumni||[]); setFiltered(r.data?.alumni||[]); }
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/public/stats`);
+      const json = await res.json();
+      if (json.success) {
+        setAlumni(json.data?.alumni || []);
+        setFiltered(json.data?.alumni || []);
+      }
+    }
     catch {} finally { setAlumniLoading(false); }
   };
   const fetchRequests = async () => {

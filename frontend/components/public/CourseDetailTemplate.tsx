@@ -17,6 +17,7 @@ interface CourseDetailProps {
   overview: string; whyMatters: string;
   outcomes: string[]; modules: Module[];
   tools: string[]; careers: CareerRole[]; faqs: FAQ[];
+  heroImage?: string;
 }
 
 const TRAINET_FEATURES = [
@@ -29,7 +30,8 @@ const TRAINET_FEATURES = [
 
 export default function CourseDetailTemplate({
   title, subtitle, gradient, duration, difficulty, icon,
-  overview, whyMatters, outcomes, modules, tools, careers, faqs,
+  overview, whyMatters, outcomes, modules,
+  tools, careers, faqs, heroImage,
 }: CourseDetailProps) {
   const [openModule, setOpenModule] = useState<number|null>(0);
   const [openFaq,    setOpenFaq]    = useState<number|null>(null);
@@ -39,15 +41,23 @@ export default function CourseDetailTemplate({
   return (
     <PublicLayout>
 
-      {/* ── HERO — dark with course gradient accent ── */}
+      {/* ── HERO — dark with course background image ── */}
       <section className="relative pt-28 pb-20 px-6 overflow-hidden" style={{background:'#07071a'}}>
-        {/* grid */}
+        {/* Background image with dark overlay */}
+        {heroImage && (
+          <>
+            <div className="absolute inset-0 pointer-events-none"
+              style={{backgroundImage:`url(${heroImage})`,backgroundSize:'cover',backgroundPosition:'center',filter:'blur(2px)',transform:'scale(1.05)'}}/>
+            <div className="absolute inset-0 pointer-events-none" style={{background:'rgba(7,7,26,0.55)'}}/>
+          </>
+        )}
+        {/* grid overlay */}
         <div className="absolute inset-0 pointer-events-none" style={{
           backgroundImage:'linear-gradient(rgba(139,92,246,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,0.03) 1px,transparent 1px)',
           backgroundSize:'64px 64px',
         }}/>
         {/* gradient blob from course color */}
-        <div className={`absolute inset-0 pointer-events-none bg-gradient-to-br ${gradient} opacity-10`}/>
+        {!heroImage && <div className={`absolute inset-0 pointer-events-none bg-gradient-to-br ${gradient} opacity-10`}/>}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] rounded-full pointer-events-none"
           style={{background:'radial-gradient(ellipse,rgba(139,92,246,0.12) 0%,transparent 70%)',filter:'blur(50px)'}}/>
 
@@ -57,23 +67,8 @@ export default function CourseDetailTemplate({
             <ArrowLeftIcon className="w-4 h-4"/> All Courses
           </Link>
 
-          <div className="flex items-start gap-5 mb-6">
-            <div className={`w-20 h-20 bg-gradient-to-br ${gradient} rounded-2xl flex items-center justify-center text-4xl shrink-0`}
-              style={{boxShadow:'0 8px 32px rgba(139,92,246,0.40)'}}>
-              {icon}
-            </div>
-            <div>
-              <div className="flex flex-wrap gap-2 mb-3">
-                <span className="px-3 py-1 rounded-full text-xs font-semibold"
-                  style={{background:'rgba(139,92,246,0.15)',border:'1px solid rgba(139,92,246,0.28)',color:'#c4b5fd'}}>
-                  ⏱ {duration}
-                </span>
-                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${difficulty==='Beginner'?'bg-green-500/15 text-green-400 border border-green-500/25':'bg-orange-500/15 text-orange-400 border border-orange-500/25'}`}>
-                  {difficulty}
-                </span>
-              </div>
-              <h1 className="text-3xl md:text-5xl font-black text-white leading-tight">{title}</h1>
-            </div>
+          <div className="mb-6">
+            <h1 className="text-3xl md:text-5xl font-black text-white leading-tight">{title}</h1>
           </div>
 
           <p className="text-white/55 text-base md:text-lg max-w-2xl mb-8 leading-relaxed">{subtitle}</p>

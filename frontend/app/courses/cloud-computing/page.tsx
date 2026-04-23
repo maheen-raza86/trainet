@@ -9,6 +9,7 @@ export default function CloudComputingPage() {
       duration="6–8 Weeks"
       difficulty="Beginner"
       icon="☁️"
+      heroImage="/Cloudcomputing.png"
       overview="This course covers cloud computing from fundamentals to hands-on deployment across AWS, Azure, and Google Cloud. You'll learn to architect, deploy, and manage cloud infrastructure used by modern enterprises."
       whyMatters="Cloud computing is the foundation of modern IT. Every company is migrating to the cloud. Cloud professionals are among the highest-paid in tech, with demand growing faster than supply."
       outcomes={[

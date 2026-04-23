@@ -52,9 +52,12 @@ export default function StudentAlumniPage() {
 
   const fetchAlumni = async () => {
     try {
-      const res: any = await apiClient.get('/alumni');
-      setAlumni(res.data?.alumni || []);
-      setFiltered(res.data?.alumni || []);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/public/stats`);
+      const json = await res.json();
+      if (json.success) {
+        setAlumni(json.data?.alumni || []);
+        setFiltered(json.data?.alumni || []);
+      }
     } catch { /* ignore */ } finally {
       setLoading(false);
     }

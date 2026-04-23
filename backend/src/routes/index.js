@@ -120,6 +120,50 @@ router.get('/search', async (req, res) => {
 });
 
 /**
+ * Public alumni list endpoint (no auth required)
+ * GET /api/public/alumni
+ */
+router.get('/public/alumni', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('alumni_profiles')
+      .select(`
+        id, headline, skills, available_for_mentorship,
+        profiles!alumni_profiles_user_id_fkey(id, first_name, last_name, profile_picture_url, avatar_url)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) return res.status(200).json({ success: true, data: { alumni: [] } });
+    return res.status(200).json({ success: true, data: { alumni: data || [] } });
+  } catch {
+    return res.status(200).json({ success: true, data: { alumni: [] } });
+  }
+});
+
+/**
+ * Public alumni profile endpoint (no auth required)
+ * GET /api/public/alumni/:id
+ */
+router.get('/public/alumni/:id', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('alumni_profiles')
+      .select(`
+        id, headline, bio, experience, skills, achievements,
+        linkedin_url, portfolio_url, available_for_mentorship,
+        profiles!alumni_profiles_user_id_fkey(id, first_name, last_name, profile_picture_url, avatar_url)
+      `)
+      .eq('id', req.params.id)
+      .single();
+
+    if (error || !data) return res.status(404).json({ success: false, message: 'Alumni not found' });
+    return res.status(200).json({ success: true, data });
+  } catch {
+    return res.status(404).json({ success: false, message: 'Alumni not found' });
+  }
+});
+
+/**
  * Public top candidates endpoint for talent pool preview (no auth required)
  * GET /api/public/top-candidates
  * Returns top 6 real students ranked by score (certs + grades + completed courses)
@@ -307,7 +351,7 @@ router.get('/public/stats', async (req, res) => {
       supabase.from('courses').select('id', { count: 'exact', head: false }),
       supabase.from('certificates').select('id', { count: 'exact', head: false }).eq('status', 'valid'),
       supabase.from('course_offerings').select(`id, status, courses(id, title, description), profiles!course_offerings_trainer_id_fkey(first_name, last_name)`).eq('status', 'open').order('created_at', { ascending: false }).limit(6),
-      supabase.from('alumni_profiles').select(`id, headline, skills, available_for_mentorship, profiles!alumni_profiles_user_id_fkey(id, first_name, last_name)`).limit(6),
+      supabase.from('alumni_profiles').select(`id, headline, skills, available_for_mentorship, profiles!alumni_profiles_user_id_fkey(id, first_name, last_name, profile_picture_url, avatar_url)`).limit(6),
     ]);
 
     const profiles = profilesRes.data || [];

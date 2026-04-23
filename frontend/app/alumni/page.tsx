@@ -1,34 +1,22 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { UsersIcon, MagnifyingGlassIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { UsersIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import PublicLayout, { PageHero, WaveDivider, AngleDivider } from '@/components/public/PublicLayout';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export default function AlumniPublicPage() {
-  const [alumni, setAlumni]   = useState<any[]>([]);
-  const [filtered, setFiltered] = useState<any[]>([]);
-  const [search, setSearch]   = useState('');
+  const [alumni, setAlumni] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(()=>{ fetchAlumni(); },[]);
-  useEffect(()=>{
-    const q=search.toLowerCase();
-    setFiltered(alumni.filter(a=>
-      `${a.profiles?.first_name} ${a.profiles?.last_name}`.toLowerCase().includes(q)||
-      (a.headline||'').toLowerCase().includes(q)||(a.skills||'').toLowerCase().includes(q)
-    ));
-  },[search,alumni]);
-
-  const fetchAlumni=async()=>{
-    try{
-      const res=await fetch(`${API}/public/stats`);
-      const json=await res.json();
-      setAlumni(json.data?.alumni||[]);
-      setFiltered(json.data?.alumni||[]);
-    }catch{}finally{setLoading(false);}
-  };
+  useEffect(() => {
+    fetch(`${API}/public/stats`)
+      .then(r => r.json())
+      .then(j => { if (j.success) setAlumni(j.data?.alumni || []); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <PublicLayout>
@@ -40,43 +28,43 @@ export default function AlumniPublicPage() {
       />
       <AngleDivider fromDark={true} toDark={false}/>
 
-      {/* Search + grid — light */}
+      {/* Grid — light */}
       <section className="py-20 px-6" style={{background:'#f6f3ef'}}>
         <div className="container mx-auto max-w-5xl">
-          {/* search */}
-          <div className="relative mb-10 reveal">
-            <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"/>
-            <input type="text" value={search} onChange={e=>setSearch(e.target.value)}
-              placeholder="Search by name, headline, or skills..."
-              className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-purple-400 transition-colors shadow-sm"/>
-          </div>
-
           {loading ? (
-            <div className="grid md:grid-cols-3 gap-6">{[1,2,3].map(i=><div key={i} className="bg-slate-200 rounded-2xl h-40 animate-pulse"/>)}</div>
-          ) : filtered.length>0 ? (
+            <div className="grid md:grid-cols-3 gap-6">
+              {[1,2,3].map(i => <div key={i} className="bg-slate-200 rounded-2xl h-40 animate-pulse"/>)}
+            </div>
+          ) : alumni.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
-              {filtered.map(a=>(
+              {alumni.map(a => (
                 <Link key={a.id} href={`/alumni/${a.id}`}
                   className="reveal group bg-white rounded-2xl p-6 border border-slate-200 hover:border-purple-300 hover:-translate-y-1 hover:shadow-xl transition-all duration-300 cursor-pointer"
                   style={{boxShadow:'0 2px 12px rgba(0,0,0,0.05)'}}>
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full flex items-center justify-center text-white font-bold shrink-0"
+                    <div className="w-12 h-12 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full flex items-center justify-center text-white font-bold shrink-0 overflow-hidden"
                       style={{boxShadow:'0 0 14px rgba(139,92,246,0.30)'}}>
-                      {a.profiles?.first_name?.[0]}{a.profiles?.last_name?.[0]}
+                      {a.profiles?.profile_picture_url || a.profiles?.avatar_url ? (
+                        <img src={a.profiles.profile_picture_url || a.profiles.avatar_url} alt="" className="w-full h-full object-cover"/>
+                      ) : (
+                        <>{a.profiles?.first_name?.[0]}{a.profiles?.last_name?.[0]}</>
+                      )}
                     </div>
                     <div>
-                      <p className="font-bold text-slate-900 group-hover:text-purple-700 transition-colors">{a.profiles?.first_name} {a.profiles?.last_name}</p>
-                      {a.headline&&<p className="text-slate-500 text-xs">{a.headline}</p>}
+                      <p className="font-bold text-slate-900 group-hover:text-purple-700 transition-colors">
+                        {a.profiles?.first_name} {a.profiles?.last_name}
+                      </p>
+                      {a.headline && <p className="text-slate-500 text-xs">{a.headline}</p>}
                     </div>
                   </div>
-                  {a.skills&&(
+                  {a.skills && (
                     <div className="flex flex-wrap gap-1 mb-2">
-                      {a.skills.split(',').slice(0,3).map((s:string,i:number)=>(
+                      {a.skills.split(',').slice(0,3).map((s: string, i: number) => (
                         <span key={i} className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">{s.trim()}</span>
                       ))}
                     </div>
                   )}
-                  {a.available_for_mentorship&&(
+                  {a.available_for_mentorship && (
                     <span className="inline-block mt-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">Available for mentorship</span>
                   )}
                 </Link>
@@ -85,7 +73,7 @@ export default function AlumniPublicPage() {
           ) : (
             <div className="text-center py-16">
               <UsersIcon className="w-14 h-14 text-slate-300 mx-auto mb-4"/>
-              <p className="text-slate-400">{search?'No alumni match your search':'No alumni profiles yet'}</p>
+              <p className="text-slate-400">No alumni profiles yet</p>
             </div>
           )}
         </div>
