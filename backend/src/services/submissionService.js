@@ -22,46 +22,59 @@ import { evaluateSubmission } from './aiEvaluationService.js';
 import { autoIssueCertificateIfEligible } from './certificateService.js';
 import { updateLastActivity } from './adminService.js';
 import { createNotification } from './notificationService.js';
+import { downloadFile, isSupabaseUrl } from '../utils/storageService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Extract text content from an uploaded file.
- * Supports: .docx (mammoth), .pdf (pdf-parse), plain text files.
+ * Extract text content from a file.
+ * Supports Supabase Storage URLs (new) and legacy local paths (backward compat).
  * Returns empty string on failure — never throws.
  */
 const readFileContent = async (fileUrl) => {
   try {
     if (!fileUrl) return '';
-    const filePath = path.join(__dirname, '../../', fileUrl);
-    if (!fs.existsSync(filePath)) {
-      logger.warn(`[readFileContent] File not found: ${filePath}`);
-      return '';
-    }
-    const ext = path.extname(filePath).toLowerCase();
 
-    // ── DOCX ──────────────────────────────────────────────────────────
+    let buffer, ext;
+
+    if (isSupabaseUrl(fileUrl)) {
+      // ── New path: download from Supabase Storage ──────────────────────
+      const result = await downloadFile(fileUrl);
+      if (!result) return '';
+      buffer = result.buffer;
+      ext = result.ext;
+    } else {
+      // ── Legacy path: read from local disk (backward compat) ───────────
+      const filePath = path.join(__dirname, '../../', fileUrl);
+      if (!fs.existsSync(filePath)) {
+        logger.warn(`[readFileContent] Local file not found: ${filePath}`);
+        return '';
+      }
+      ext = path.extname(filePath).toLowerCase();
+      buffer = fs.readFileSync(filePath);
+    }
+
+    // ── DOCX ──────────────────────────────────────────────────────────────
     if (ext === '.docx') {
-      const result = await mammoth.extractRawText({ path: filePath });
+      const result = await mammoth.extractRawText({ buffer });
       const text = (result.value || '').trim();
       console.log(`[readFileContent] DOCX extracted ${text.length} chars`);
       return text.slice(0, 20000);
     }
 
-    // ── PDF ───────────────────────────────────────────────────────────
+    // ── PDF ───────────────────────────────────────────────────────────────
     if (ext === '.pdf') {
-      const buffer = fs.readFileSync(filePath);
       const data = await pdfParse(buffer);
       const text = (data.text || '').trim();
       console.log(`[readFileContent] PDF extracted ${text.length} chars`);
       return text.slice(0, 20000);
     }
 
-    // ── Plain text ────────────────────────────────────────────────────
+    // ── Plain text ────────────────────────────────────────────────────────
     const textExts = ['.txt', '.md', '.js', '.py', '.java', '.cpp', '.c', '.ts', '.html', '.css', '.json'];
     if (textExts.includes(ext)) {
-      const content = fs.readFileSync(filePath, 'utf8');
+      const content = buffer.toString('utf8');
       console.log(`[readFileContent] Text file extracted ${content.length} chars`);
       return content.slice(0, 20000);
     }

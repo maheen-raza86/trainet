@@ -5,6 +5,7 @@
 
 import nodemailer from 'nodemailer';
 import logger from './logger.js';
+import config from '../config/env.js';
 
 /**
  * Create email transporter
@@ -61,8 +62,8 @@ const createTransporter = async () => {
  */
 export const sendVerificationEmail = async (email, token) => {
   try {
-    const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${token}`;
-    const apiVerificationUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/auth/verify-email?token=${token}`;
+    const verificationUrl = `${config.frontendUrl}/verify-email?token=${token}`;
+    const apiVerificationUrl = `${config.backendUrl}/api/auth/verify-email?token=${token}`;
 
     const mailOptions = {
       from: process.env.SMTP_FROM || '"TRAINET" <noreply@trainet.com>',
@@ -139,7 +140,7 @@ If you didn't create an account with TRAINET, you can safely ignore this email.
  */
 export const sendPasswordResetEmail = async (email, token) => {
   try {
-    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
+    const resetUrl = `${config.frontendUrl}/reset-password?token=${token}`;
 
     const mailOptions = {
       from: process.env.SMTP_FROM || '"TRAINET" <noreply@trainet.com>',

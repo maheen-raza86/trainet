@@ -6,6 +6,7 @@
 import * as submissionService from '../services/submissionService.js';
 import logger from '../utils/logger.js';
 import { BadRequestError } from '../utils/errors.js';
+import { uploadFile } from '../utils/storageService.js';
 
 /**
  * Submit assignment
@@ -24,14 +25,11 @@ export const submitAssignment = async (req, res, next) => {
       assignmentId, 
       studentId, 
       userRole: req.user.role,
-      userObject: req.user,
       file: file ? {
-        filename: file.filename,
         originalname: file.originalname,
         size: file.size,
         mimetype: file.mimetype
       } : null,
-      body: req.body,
       hasFile: !!file
     });
 
@@ -65,8 +63,16 @@ export const submitAssignment = async (req, res, next) => {
       });
     }
 
-    // Create file URL (relative path for now)
-    const fileUrl = file ? `/uploads/${file.filename}` : null;
+    // Upload file to Supabase Storage if provided
+    let fileUrl = null;
+    if (file) {
+      fileUrl = await uploadFile({
+        buffer: file.buffer,
+        folder: 'submissions',
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+      });
+    }
 
     const submission = await submissionService.submitAssignment({
       assignmentId,

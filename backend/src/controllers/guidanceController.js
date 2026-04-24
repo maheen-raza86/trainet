@@ -3,6 +3,7 @@
  */
 
 import * as guidanceService from '../services/guidanceService.js';
+import { uploadFile } from '../utils/storageService.js';
 
 // ── Guidance Requests ─────────────────────────────────────────────────────────
 
@@ -82,11 +83,16 @@ export const updateSession = async (req, res, next) => {
 
 export const uploadMaterialHandler = async (req, res, next) => {
   try {
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
-    // If a real file was uploaded via multer, use its path; otherwise fall back to body.file_url
-    const fileUrl = req.file
-      ? `${backendUrl}/uploads/${req.file.filename}`
-      : req.body.file_url;
+    // If a real file was uploaded via multer, upload to Supabase Storage
+    let fileUrl = req.body.file_url || null;
+    if (req.file) {
+      fileUrl = await uploadFile({
+        buffer: req.file.buffer,
+        folder: 'materials',
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+      });
+    }
 
     // Auto-detect type from file extension if not provided
     let type = req.body.type || 'document';

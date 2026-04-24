@@ -7,6 +7,7 @@ import express from 'express';
 import * as qrEnrollmentController from '../controllers/qrEnrollmentController.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
 import { authorizeRoles } from '../middleware/roleMiddleware.js';
+import config from '../config/env.js';
 
 const router = express.Router();
 
@@ -46,7 +47,7 @@ router.get('/enroll-token/:offeringId', verifyToken, authorizeRoles('student'), 
       return res.status(404).json({ success: false, message: 'No active QR token found for this offering' });
     }
 
-    const enrollUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/enroll?token=${data.token}`;
+    const enrollUrl = `${config.frontendUrl}/enroll?token=${data.token}`;
     res.status(200).json({ success: true, data: { token: data.token, enrollUrl, expires_at: data.expires_at } });
   } catch (err) { next(err); }
 });

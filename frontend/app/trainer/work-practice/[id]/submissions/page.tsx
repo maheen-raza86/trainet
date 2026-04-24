@@ -193,7 +193,7 @@ function WPSubmissionCard({
           {sub.file_url && (
             <div className="flex items-center gap-2">
               <a
-                href={sub.file_url.startsWith('/') ? `http://localhost:5000${sub.file_url}` : sub.file_url}
+                href={sub.file_url.startsWith('/') ? `${process.env.NEXT_PUBLIC_API_URL?.replace('/api','')}${sub.file_url}` : sub.file_url}
                 target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 text-purple-700 rounded-lg text-sm hover:bg-purple-100 transition"
               >

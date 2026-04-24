@@ -30,7 +30,7 @@ interface Certificate {
   };
 }
 
-const FRONTEND_URL = process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000';
+const FRONTEND_URL = process.env.NEXT_PUBLIC_FRONTEND_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
 export default function StudentCertificates() {
   const [certificates, setCertificates] = useState<Certificate[]>([]);

@@ -15,14 +15,15 @@ import supabase from '../config/supabaseClient.js';
 import logger from '../utils/logger.js';
 import { BadRequestError, NotFoundError, ForbiddenError, ConflictError } from '../utils/errors.js';
 import { createNotification } from './notificationService.js';
+import config from '../config/env.js';
 
 // Completion threshold: 100% of required assignments submitted
 const COMPLETION_THRESHOLD = 100;
 // Attendance threshold: 85%
 const ATTENDANCE_THRESHOLD = 85;
 
-// Frontend base URL for verification links
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+// Frontend base URL for verification links — always from env config
+const FRONTEND_URL = config.frontendUrl;
 
 // ─────────────────────────────────────────────
 // HELPERS

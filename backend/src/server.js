@@ -6,6 +6,7 @@
 import app from './app.js';
 import { config } from './config/index.js';
 import logger from './utils/logger.js';
+import { ensureBucketExists } from './utils/storageService.js';
 
 /**
  * Start server
@@ -23,6 +24,11 @@ const server = app.listen(config.port, () => {
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
+
+  // Ensure Supabase Storage bucket exists (non-blocking)
+  ensureBucketExists().catch(err =>
+    logger.error('[Storage] Bucket init failed:', err.message)
+  );
 });
 
 /**

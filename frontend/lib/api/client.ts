@@ -1,7 +1,17 @@
 import axios from 'axios';
 
+// API base URL must be set via NEXT_PUBLIC_API_URL environment variable.
+// In development: http://localhost:5000/api
+// In production:  https://your-backend.railway.app/api
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_BASE_URL && typeof window === 'undefined') {
+  // Server-side warning during build — not a hard crash
+  console.warn('[apiClient] NEXT_PUBLIC_API_URL is not set. API calls will fail.');
+}
+
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

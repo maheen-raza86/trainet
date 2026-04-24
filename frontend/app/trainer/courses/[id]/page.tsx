@@ -196,7 +196,7 @@ function SubmissionCard({ sub: initialSub, assignmentTitle, onRefresh }: { sub: 
         <div className="p-5 space-y-3">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Submission</p>
           {sub.attachment_url ? (
-            <a href={sub.attachment_url.startsWith('/') ? `http://localhost:5000${sub.attachment_url}` : sub.attachment_url}
+            <a href={sub.attachment_url.startsWith('/') ? `${process.env.NEXT_PUBLIC_API_URL?.replace('/api','')}${sub.attachment_url}` : sub.attachment_url}
               target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 text-purple-700 rounded-lg text-sm hover:bg-purple-100 transition">
               📎 View Submitted File
@@ -754,7 +754,7 @@ export default function TrainerCourseManage() {
                   </div>
                   <div className="flex items-center space-x-2">
                     {(m.external_url || m.file_url) && (
-                      <a href={m.external_url || `http://localhost:5000${m.file_url}`} target="_blank" rel="noopener noreferrer"
+                      <a href={m.external_url || (m.file_url ? (m.file_url.startsWith('/') ? `${process.env.NEXT_PUBLIC_API_URL?.replace('/api','')}${m.file_url}` : m.file_url) : '#')} target="_blank" rel="noopener noreferrer"
                         className="p-2 text-gray-500 hover:text-purple-600 transition">
                         <ArrowTopRightOnSquareIcon className="w-4 h-4" />
                       </a>

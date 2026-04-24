@@ -116,7 +116,7 @@ export default function StudentCourseDetail() {
 
   const getSubmission = (id:string) => submissions.find(s=>s.assignment_id===id);
   const isPastDeadline = (d:string) => new Date(d)<new Date();
-  const getMaterialUrl = (m:Material) => m.external_url||(m.file_url?`http://localhost:5000${m.file_url}`:null);
+  const getMaterialUrl = (m:Material) => m.external_url||(m.file_url?(m.file_url.startsWith('/')?`${process.env.NEXT_PUBLIC_API_URL?.replace('/api','')}${m.file_url}`:m.file_url):null);
 
   const handleClaimCertificate = async () => {
     try { setCertClaiming(true); await apiClient.post('/certificates/issue',{offeringId}); setCertSuccess(true); fetchAll(); }

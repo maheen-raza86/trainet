@@ -6,6 +6,7 @@
 import logger from '../utils/logger.js';
 import * as userService from '../services/userService.js';
 import * as enrollmentService from '../services/enrollmentService.js';
+import { uploadFile } from '../utils/storageService.js';
 
 /**
  * Get current authenticated user
@@ -117,10 +118,16 @@ export const patchProfile = async (req, res, next) => {
 
     const updatePayload = { firstName, lastName, bio, skills, interests, visibility_in_talent_pool };
 
-    // If a file was uploaded, build the full absolute URL and store it
+    // If a file was uploaded, upload to Supabase Storage and store the public URL
     if (file) {
-      const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
-      updatePayload.profile_picture_url = `${backendUrl}/uploads/avatars/${file.filename}`;
+      const publicUrl = await uploadFile({
+        buffer: file.buffer,
+        folder: 'avatars',
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        userId,
+      });
+      updatePayload.profile_picture_url = publicUrl;
     }
 
     const updatedProfile = await userService.updateUserProfile(userId, updatePayload);

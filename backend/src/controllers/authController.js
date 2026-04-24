@@ -160,7 +160,7 @@ export const forgotPassword = async (req, res, next) => {
       });
     }
 
-    const redirectTo = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password`;
+    const redirectTo = `${config.frontendUrl}/reset-password`;
 
     const { error } = await supabaseAuthClient.auth.resetPasswordForEmail(email, {
       redirectTo,

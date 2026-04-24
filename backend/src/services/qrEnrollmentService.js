@@ -8,6 +8,7 @@ import { supabaseAdminClient } from '../config/supabaseClient.js';
 import logger from '../utils/logger.js';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../utils/errors.js';
 import crypto from 'crypto';
+import config from '../config/env.js';
 
 /**
  * Generate QR enrollment token for a course offering
@@ -68,7 +69,7 @@ export const generateQRToken = async (trainerId, offeringId, options = {}) => {
 
     return {
       ...data,
-      enrollUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/enroll?token=${token}`,
+      enrollUrl: `${config.frontendUrl}/enroll?token=${token}`,
     };
   } catch (error) {
     if (
@@ -122,7 +123,7 @@ export const getOfferingQRTokens = async (trainerId, offeringId) => {
     // Add enroll URLs
     const tokensWithUrls = (data || []).map(token => ({
       ...token,
-      enrollUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/enroll?token=${token.token}`,
+      enrollUrl: `${config.frontendUrl}/enroll?token=${token.token}`,
     }));
 
     return tokensWithUrls;

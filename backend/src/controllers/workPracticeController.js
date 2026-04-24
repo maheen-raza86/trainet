@@ -5,8 +5,8 @@
 
 import * as wpService from '../services/workPracticeService.js';
 import { BadRequestError } from '../utils/errors.js';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+import { uploadFile } from '../utils/storageService.js';
+import path from 'path';
 
 // ── Tasks ──────────────────────────────────────────────────────────────────
 
@@ -16,10 +16,16 @@ export const createTask = async (req, res, next) => {
     const { title, description, instructions, resourceUrl, taskType, deadline, offeringId } = req.body;
     const file = req.file;
 
-    // If a resource file was uploaded, use its URL
-    const finalResourceUrl = file
-      ? `${process.env.BACKEND_URL || 'http://localhost:5000'}/uploads/${file.filename}`
-      : resourceUrl || null;
+    // Upload resource file to Supabase Storage if provided
+    let finalResourceUrl = resourceUrl || null;
+    if (file) {
+      finalResourceUrl = await uploadFile({
+        buffer: file.buffer,
+        folder: 'work-practice',
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+      });
+    }
 
     const task = await wpService.createTask(trainerId, {
       title, description, instructions, resourceUrl: finalResourceUrl,
@@ -83,10 +89,9 @@ export const submitTask = async (req, res, next) => {
 
     // For project/coding: if a file is uploaded, it must be a ZIP
     if (file && (taskType === 'project' || taskType === 'coding')) {
-      const ext = require('path').extname(file.originalname).toLowerCase();
+      const ext = path.extname(file.originalname).toLowerCase();
       if (ext !== '.zip') {
-        // Delete the uploaded non-zip file
-        try { require('fs').unlinkSync(file.path); } catch { /* ignore */ }
+        // No disk file to delete — memory storage, just reject
         return res.status(400).json({
           success: false,
           message: 'For Project and Coding tasks, please upload a ZIP file containing your code.',
@@ -97,7 +102,12 @@ export const submitTask = async (req, res, next) => {
 
     let fileUrl = null, fileName = null, fileSize = null;
     if (file) {
-      fileUrl = `${process.env.BACKEND_URL || 'http://localhost:5000'}/uploads/${file.filename}`;
+      fileUrl = await uploadFile({
+        buffer: file.buffer,
+        folder: 'work-practice',
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+      });
       fileName = file.originalname;
       fileSize = file.size;
     }

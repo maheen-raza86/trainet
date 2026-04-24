@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { UsersIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import PublicLayout, { PageHero, WaveDivider, AngleDivider } from '@/components/public/PublicLayout';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API = process.env.NEXT_PUBLIC_API_URL;
 
 export default function AlumniPublicPage() {
   const [alumni, setAlumni] = useState<any[]>([]);

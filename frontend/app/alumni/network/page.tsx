@@ -37,7 +37,7 @@ export default function AlumniNetworkPage() {
 
   const fetchAlumni = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/public/stats`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/public/stats`);
       const json = await res.json();
       if (json.success) {
         const all: AlumniProfile[] = json.data?.alumni || [];

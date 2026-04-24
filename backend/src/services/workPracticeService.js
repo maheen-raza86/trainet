@@ -404,6 +404,7 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
 const AdmZip   = require('adm-zip');
+import { downloadFile, isSupabaseUrl } from '../utils/storageService.js';
 
 const __filename_wp = fileURLToPath(import.meta.url);
 const __dirname_wp  = path.dirname(__filename_wp);
@@ -436,31 +437,45 @@ const MAX_TOTAL_CHARS  = 40000;       // total chars sent to AI
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Resolve a stored URL/path to an absolute filesystem path */
-const resolveFilePath = (fileUrl) => {
-  if (!fileUrl) return null;
+/** Resolve a stored URL/path to an absolute filesystem path (legacy local only) */
+const resolveLocalFilePath = (fileUrl) => {
+  if (!fileUrl || isSupabaseUrl(fileUrl)) return null;
   const relative = fileUrl.replace(/^https?:\/\/[^/]+/, '');
   const abs = path.join(__dirname_wp, '../../', relative);
   return fs.existsSync(abs) ? abs : null;
 };
 
-/** Read a single plain-text or DOCX/PDF file */
+/** Read a single file — supports Supabase URLs (new) and local paths (legacy) */
 const readFileContent = async (fileUrl) => {
   try {
-    const filePath = resolveFilePath(fileUrl);
-    if (!filePath) return '';
-    const ext = path.extname(filePath).toLowerCase();
+    if (!fileUrl) return '';
+
+    let buffer, ext;
+
+    if (isSupabaseUrl(fileUrl)) {
+      // ── New: download from Supabase Storage ──────────────────────────
+      const result = await downloadFile(fileUrl);
+      if (!result) return '';
+      buffer = result.buffer;
+      ext = result.ext;
+    } else {
+      // ── Legacy: read from local disk ──────────────────────────────────
+      const filePath = resolveLocalFilePath(fileUrl);
+      if (!filePath) return '';
+      ext = path.extname(filePath).toLowerCase();
+      buffer = fs.readFileSync(filePath);
+    }
+
     if (ext === '.docx') {
-      const result = await mammoth.extractRawText({ path: filePath });
+      const result = await mammoth.extractRawText({ buffer });
       return (result.value || '').trim().slice(0, 20000);
     }
     if (ext === '.pdf') {
-      const buffer = fs.readFileSync(filePath);
       const data = await pdfParse(buffer);
       return (data.text || '').trim().slice(0, 20000);
     }
     if (TEXT_EXTS.has(ext)) {
-      return fs.readFileSync(filePath, 'utf8').slice(0, 20000);
+      return buffer.toString('utf8').slice(0, 20000);
     }
     return '';
   } catch { return ''; }
@@ -468,27 +483,24 @@ const readFileContent = async (fileUrl) => {
 
 /**
  * Extract a ZIP file and return an array of { filename, content } objects.
- * Prioritises important files, skips binaries/large files, prevents path traversal.
- * Cleans up the temp directory after reading.
+ * Accepts either a Buffer (from Supabase download) or a local file path (legacy).
  */
-const extractZipContents = (zipFilePath) => {
+const extractZipContents = (zipSource) => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wp-zip-'));
   const included = [];
 
   try {
-    const zip = new AdmZip(zipFilePath);
+    // zipSource can be a Buffer (Supabase) or a string path (legacy)
+    const zip = Buffer.isBuffer(zipSource) ? new AdmZip(zipSource) : new AdmZip(zipSource);
     const entries = zip.getEntries();
 
-    console.log(`[WP ZIP] Extracting ${entries.length} entries from ${path.basename(zipFilePath)}`);
+    console.log(`[WP ZIP] Extracting ${entries.length} entries`);
 
-    // Score each entry so we can prioritise
     const scored = entries
       .filter(e => {
         if (e.isDirectory) return false;
         const parts = e.entryName.replace(/\\/g, '/').split('/');
-        // Skip if any path segment is a skip-dir
         if (parts.some(p => SKIP_DIRS.has(p.toLowerCase()))) return false;
-        // Skip very large entries
         if (e.header.size > MAX_FILE_BYTES) return false;
         return true;
       })
@@ -508,20 +520,16 @@ const extractZipContents = (zipFilePath) => {
     for (const item of scored) {
       if (included.length >= MAX_FILES) break;
       if (totalChars >= MAX_TOTAL_CHARS) break;
-
       try {
         const raw = item.entry.getData().toString('utf8');
-        const truncated = raw.slice(0, 8000); // max 8 KB per file in prompt
+        const truncated = raw.slice(0, 8000);
         included.push({ filename: item.entry.entryName, content: truncated });
         totalChars += truncated.length;
       } catch { /* skip unreadable */ }
     }
 
     console.log(`[WP ZIP] Included ${included.length} files, total chars: ${totalChars}`);
-    console.log(`[WP ZIP] Files: ${included.map(f => f.filename).join(', ')}`);
-
   } finally {
-    // Always clean up temp dir
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 
@@ -582,13 +590,25 @@ export const runAiEvaluation = async (submissionId, trainerId) => {
   // ── Extract ZIP contents if applicable ───────────────────────────────────
   let zipFiles = [];
   if (isProjectOrCoding && submission.file_url) {
-    const filePath = resolveFilePath(submission.file_url);
-    if (filePath && path.extname(filePath).toLowerCase() === '.zip') {
-      try {
-        zipFiles = extractZipContents(filePath);
-      } catch (zipErr) {
-        logger.warn(`[WP AI] ZIP extraction failed (non-blocking): ${zipErr.message}`);
+    try {
+      if (isSupabaseUrl(submission.file_url)) {
+        // New: download buffer from Supabase, check extension from URL
+        const urlExt = path.extname(submission.file_url.split('?')[0]).toLowerCase();
+        if (urlExt === '.zip') {
+          const result = await downloadFile(submission.file_url);
+          if (result?.buffer) {
+            zipFiles = extractZipContents(result.buffer);
+          }
+        }
+      } else {
+        // Legacy: resolve local path
+        const filePath = resolveLocalFilePath(submission.file_url);
+        if (filePath && path.extname(filePath).toLowerCase() === '.zip') {
+          zipFiles = extractZipContents(filePath);
+        }
       }
+    } catch (zipErr) {
+      logger.warn(`[WP AI] ZIP extraction failed (non-blocking): ${zipErr.message}`);
     }
   }
 

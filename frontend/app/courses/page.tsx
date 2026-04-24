@@ -14,7 +14,7 @@ import PublicLayout, {
   WaveDivider,
 } from '@/components/public/PublicLayout';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API = process.env.NEXT_PUBLIC_API_URL;
 
 /* Gradient palette — cycles through for each card */
 const CARD_ACCENTS = [

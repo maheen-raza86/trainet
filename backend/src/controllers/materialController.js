@@ -5,6 +5,7 @@
 import * as materialService from '../services/materialService.js';
 import logger from '../utils/logger.js';
 import { BadRequestError } from '../utils/errors.js';
+import { uploadFile } from '../utils/storageService.js';
 
 /**
  * Add material to a course offering
@@ -20,13 +21,18 @@ export const addMaterial = async (req, res, next) => {
       throw new BadRequestError('offeringId and title are required');
     }
 
-    // Determine file vs link
+    // Upload file to Supabase Storage if provided
     let fileUrl = null;
     let fileName = null;
     let fileSize = null;
 
     if (file) {
-      fileUrl = `/uploads/${file.filename}`;
+      fileUrl = await uploadFile({
+        buffer: file.buffer,
+        folder: 'materials',
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+      });
       fileName = file.originalname;
       fileSize = file.size;
     }

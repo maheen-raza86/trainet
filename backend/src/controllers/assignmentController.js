@@ -6,6 +6,7 @@
 import * as assignmentService from '../services/assignmentService.js';
 import logger from '../utils/logger.js';
 import { BadRequestError } from '../utils/errors.js';
+import { uploadFile } from '../utils/storageService.js';
 
 /**
  * Create assignment
@@ -32,14 +33,24 @@ export const createAssignment = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Only trainers can create assignments', error: 'Forbidden' });
     }
 
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    // Upload file to Supabase Storage if provided
+    let fileUrl = null;
+    if (file) {
+      fileUrl = await uploadFile({
+        buffer: file.buffer,
+        folder: 'assignments',
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+      });
+    }
+
     const assignment = await assignmentService.createAssignment({
       title,
       description,
       courseOfferingId,
       trainerId,
       dueDate,
-      fileUrl: file ? `${backendUrl}/uploads/${file.filename}` : null,
+      fileUrl,
       fileName: file ? file.originalname : null,
       fileSize: file ? file.size : null,
     });

@@ -10,7 +10,7 @@ import PublicLayout, { WaveDivider, AngleDivider, CurveDivider } from '@/compone
 
 const CertStack = dynamic(() => import('@/components/CertStack'), { ssr: false });
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API = process.env.NEXT_PUBLIC_API_URL;
 
 /* ── Data ── */
 const TRACKS = [
