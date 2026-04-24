@@ -38,7 +38,7 @@ console.log('[aiEvaluationService] GROQ_API_KEY present:', !!process.env.GROQ_AP
  */
 const resolvePythonExecutable = () => {
   for (const candidate of ['python3', 'python']) {
-    const probe = spawnSync(candidate, ['--version'], { encoding: 'utf8', timeout: 5000 });
+    const probe = spawnSync(candidate, ['--version'], { encoding: 'utf8', timeout: 15000 });
     if (!probe.error && probe.status === 0) {
       console.log(`[aiEvaluationService] Python executable: "${candidate}" (${(probe.stdout || probe.stderr || '').trim()})`);
       return candidate;
@@ -52,28 +52,31 @@ const resolvePythonExecutable = () => {
 const PYTHON_EXEC = resolvePythonExecutable();
 
 // ─────────────────────────────────────────────
-// STARTUP: VERIFY PYTHON DEPENDENCIES
+// STARTUP: VERIFY PYTHON DEPENDENCIES (non-blocking)
 // ─────────────────────────────────────────────
 
 /**
  * Verify required Python packages are installed.
- * Runs once at startup — logs clearly if packages are missing
- * so Render logs immediately show the problem.
+ * Runs once after startup via setImmediate — purely diagnostic, never fatal.
+ * Uses a generous timeout so Render free-tier cold starts don't cause false failures.
  */
 const verifyPythonDeps = () => {
-  const check = spawnSync(
-    PYTHON_EXEC,
-    ['-c', 'import groq; import sklearn; import dotenv; print("DEPS_OK")'],
-    { encoding: 'utf8', timeout: 10000 }
-  );
-  if (check.error || check.status !== 0) {
-    const detail = (check.stderr || check.error?.message || 'unknown error').trim();
-    console.error('[aiEvaluationService] FATAL: Python dependencies missing.');
-    console.error('[aiEvaluationService] Run: pip3 install -r ai_assignment_checking/requirements.txt');
-    console.error('[aiEvaluationService] Detail:', detail);
-  } else {
-    console.log('[aiEvaluationService] Python dependencies verified OK');
-  }
+  setImmediate(() => {
+    const check = spawnSync(
+      PYTHON_EXEC,
+      ['-c', 'import groq; import sklearn; import dotenv; print("DEPS_OK")'],
+      { encoding: 'utf8', timeout: 60000 }  // 60s — survives cold starts
+    );
+    if (check.error || check.status !== 0) {
+      const detail = (check.stderr || check.error?.message || 'unknown error').trim();
+      // Warn only — grading will surface the real error when a submission arrives
+      console.warn('[aiEvaluationService] Python dependency check failed (non-fatal).');
+      console.warn('[aiEvaluationService] Run: pip3 install -r ai_assignment_checking/requirements.txt');
+      console.warn('[aiEvaluationService] Detail:', detail);
+    } else {
+      console.log('[aiEvaluationService] Python dependencies verified OK');
+    }
+  });
 };
 
 verifyPythonDeps();
