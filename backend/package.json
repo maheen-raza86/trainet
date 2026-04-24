@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "type": "module",
   "scripts": {
+    "build": "pip3 install -r ../ai_assignment_checking/requirements.txt --quiet || pip install -r ../ai_assignment_checking/requirements.txt --quiet",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",

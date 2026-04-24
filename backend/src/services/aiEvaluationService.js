@@ -52,6 +52,33 @@ const resolvePythonExecutable = () => {
 const PYTHON_EXEC = resolvePythonExecutable();
 
 // ─────────────────────────────────────────────
+// STARTUP: VERIFY PYTHON DEPENDENCIES
+// ─────────────────────────────────────────────
+
+/**
+ * Verify required Python packages are installed.
+ * Runs once at startup — logs clearly if packages are missing
+ * so Render logs immediately show the problem.
+ */
+const verifyPythonDeps = () => {
+  const check = spawnSync(
+    PYTHON_EXEC,
+    ['-c', 'import groq; import sklearn; import dotenv; print("DEPS_OK")'],
+    { encoding: 'utf8', timeout: 10000 }
+  );
+  if (check.error || check.status !== 0) {
+    const detail = (check.stderr || check.error?.message || 'unknown error').trim();
+    console.error('[aiEvaluationService] FATAL: Python dependencies missing.');
+    console.error('[aiEvaluationService] Run: pip3 install -r ai_assignment_checking/requirements.txt');
+    console.error('[aiEvaluationService] Detail:', detail);
+  } else {
+    console.log('[aiEvaluationService] Python dependencies verified OK');
+  }
+};
+
+verifyPythonDeps();
+
+// ─────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────
 
@@ -64,19 +91,32 @@ const runPython = (scriptPath, payload, timeoutMs = 30000) => {
 
   console.log(`[aiEvaluationService] Running: ${PYTHON_EXEC} "${scriptPath}"`);
   console.log(`[aiEvaluationService] Input payload keys: ${Object.keys(payload).join(', ')}`);
+  console.log(`[aiEvaluationService] Timeout: ${timeoutMs}ms`);
+  console.log(`[aiEvaluationService] GROQ_API_KEY present in env: ${!!process.env.GROQ_API_KEY}`);
 
   const result = spawnSync(PYTHON_EXEC, [scriptPath], {
     input,
     encoding: 'utf8',
     timeout: timeoutMs,
     cwd: AI_DIR,
+    env: {
+      ...process.env,
+      // Explicitly forward GROQ_API_KEY so it's always available to the Python subprocess
+      GROQ_API_KEY: process.env.GROQ_API_KEY || '',
+    },
   });
 
   console.log(`[aiEvaluationService] spawnSync status: ${result.status}`);
+  console.log(`[aiEvaluationService] spawnSync signal: ${result.signal}`);
 
   if (result.error) {
-    console.error('[aiEvaluationService] spawnSync error:', result.error.message);
-    throw new Error(`Python spawn error: ${result.error.message}`);
+    const errMsg = result.error.message || String(result.error);
+    console.error('[aiEvaluationService] spawnSync error:', errMsg);
+    // ETIMEDOUT or ENOENT are the most common — surface them clearly
+    if (result.error.code === 'ETIMEDOUT' || errMsg.includes('ETIMEDOUT') || errMsg.includes('timed out')) {
+      throw new Error(`Python script timed out after ${timeoutMs}ms. Groq API may be slow or unreachable.`);
+    }
+    throw new Error(`Python spawn error: ${errMsg}`);
   }
 
   if (result.stderr && result.stderr.trim()) {
@@ -88,7 +128,8 @@ const runPython = (scriptPath, payload, timeoutMs = 30000) => {
   console.log('[aiEvaluationService] Python stdout:', stdout.slice(0, 300));
 
   if (!stdout) {
-    throw new Error(`Python script produced no output. Exit code: ${result.status}`);
+    const stderrHint = result.stderr ? ` stderr: ${result.stderr.trim().slice(0, 200)}` : '';
+    throw new Error(`Python script produced no output. Exit code: ${result.status}.${stderrHint}`);
   }
 
   return JSON.parse(stdout);
@@ -104,7 +145,7 @@ export const gradeWithGroq = (question, answer) => {
   console.log('[aiEvaluationService] answer (first 100):', String(answer).slice(0, 100));
 
   try {
-    const result = runPython(GRADING_SCRIPT, { question, answer }, 35000);
+    const result = runPython(GRADING_SCRIPT, { question, answer }, 90000);
 
     if (result.error) {
       logger.error('[aiEvaluationService] Groq returned error:', result.error);

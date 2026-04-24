@@ -98,7 +98,7 @@ const readFileContent = async (fileUrl) => {
  * @returns {Promise<Object>} Created submission
  */
 export const submitAssignment = async (submissionData) => {
-  const { assignmentId, studentId, attachmentUrl, fileName, fileSize } = submissionData;
+  const { assignmentId, studentId, attachmentUrl, fileName, fileSize, submissionText } = submissionData;
 
   try {
     // Verify assignment exists
@@ -152,12 +152,30 @@ export const submitAssignment = async (submissionData) => {
     // Add file metadata if provided
     if (fileName) submissionRecord.file_name = fileName;
     if (fileSize) submissionRecord.file_size = fileSize;
+    // submission_text requires migration 018 — only include if column exists
+    if (submissionText) submissionRecord.submission_text = submissionText;
 
-    const { data, error } = await supabase
+    let insertResult = await supabase
       .from('submissions')
       .insert([submissionRecord])
       .select()
       .single();
+
+    // If insert failed due to missing submission_text column (migration not yet applied),
+    // retry without it — the text is still used in-memory for AI evaluation below
+    if (insertResult.error && submissionText &&
+        (insertResult.error.message || '').toLowerCase().includes('submission_text')) {
+      logger.warn('[submissionService] submission_text column not found — retrying without it (run migration 018)');
+      const fallbackRecord = { ...submissionRecord };
+      delete fallbackRecord.submission_text;
+      insertResult = await supabase
+        .from('submissions')
+        .insert([fallbackRecord])
+        .select()
+        .single();
+    }
+
+    const { data, error } = insertResult;
 
     if (error) {
       logger.error('Error creating submission:', error);
@@ -191,11 +209,14 @@ export const submitAssignment = async (submissionData) => {
 
       const submissionContent = await readFileContent(data.attachment_url) || '';
 
-      // If file content is empty (PDF/DOCX), pass a placeholder so Groq can still grade
-      const effectiveContent = submissionContent ||
-        `[Student submitted file: ${data.file_name || data.attachment_url || 'unknown file'}. File content could not be extracted for automated grading.]`;
+      // Use submissionText if file content could not be extracted (text-only submission or unreadable file)
+      const effectiveContent = submissionContent
+        || (submissionText && submissionText.trim())
+        || `[Student submitted file: ${data.file_name || data.attachment_url || 'unknown file'}. File content could not be extracted for automated grading.]`;
 
       console.log('[submissionService] submissionContent length:', submissionContent.length);
+      console.log('[submissionService] submission_text length:', (submissionText || '').length);
+      console.log('[submissionService] effectiveContent source:', submissionContent ? 'file' : (submissionText ? 'text' : 'placeholder'));
       console.log('[submissionService] attachment_url:', data.attachment_url);
       console.log('[submissionService] Starting AI evaluation...');
 
@@ -477,12 +498,15 @@ export const runAiEvaluation = async (submissionId, trainerId) => {
 
     const submissionContent = await readFileContent(submission.attachment_url);
 
-    // If file content is empty (PDF/DOCX), use the file name as a hint
-    // so Groq can still provide partial feedback
-    const effectiveContent = submissionContent ||
-      `[Student submitted file: ${submission.file_name || submission.attachment_url || 'unknown file'}. File content could not be extracted for automated grading.]`;
+    // If file content is empty (PDF/DOCX), use submission_text if available,
+    // otherwise fall back to a placeholder so Groq can still provide partial feedback
+    const effectiveContent = submissionContent
+      || (submission.submission_text && submission.submission_text.trim())
+      || `[Student submitted file: ${submission.file_name || submission.attachment_url || 'unknown file'}. File content could not be extracted for automated grading.]`;
 
     console.log('[runAiEvaluation] submissionContent length:', submissionContent.length);
+    console.log('[runAiEvaluation] submission_text length:', (submission.submission_text || '').length);
+    console.log('[runAiEvaluation] effectiveContent source:', submissionContent ? 'file' : (submission.submission_text ? 'text' : 'placeholder'));
     console.log('[runAiEvaluation] effectiveContent length:', effectiveContent.length);
 
     const result = evaluateSubmission({
