@@ -15,7 +15,7 @@ function VerifyEmailContent() {
         {/* Logo/Brand */}
         <div className="text-center mb-8">
           <div className="flex justify-center">
-            <BrandLogo size="lg" stacked textClassName="text-gray-900" />
+            <BrandLogo size="lg" textClassName="text-gray-900" />
           </div>
         </div>
 

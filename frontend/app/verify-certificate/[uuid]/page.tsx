@@ -12,7 +12,7 @@ function VerificationContent() {
         {/* TRAINET Header */}
         <div className="mb-10">
           <Link href="/" className="inline-flex justify-center">
-            <BrandLogo size="lg" stacked />
+            <BrandLogo size="lg" />
           </Link>
           <p className="text-white/60 text-sm mt-2">Certificate Verification System</p>
         </div>

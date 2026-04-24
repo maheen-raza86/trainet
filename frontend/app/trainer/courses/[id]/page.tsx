@@ -923,7 +923,7 @@ export default function TrainerCourseManage() {
                         <td className="px-4 py-3 text-gray-600 text-xs">{s.average_grade !== null ? `${s.average_grade}%` : '—'}</td>
                         <td className="px-4 py-3">
                           {certMsg?.id === s.student_id ? (
-                            <span className={`text-xs px-2 py-1 rounded-lg ${certMsg.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{certMsg.text}</span>
+                            <span className={`text-xs px-2 py-1 rounded-lg ${certMsg!.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{certMsg!.text}</span>
                           ) : s.certificate ? (
                             <span className="text-xs px-2 py-1 rounded-lg bg-green-100 text-green-700 font-medium">✓ Issued</span>
                           ) : (
