@@ -24,6 +24,9 @@ interface Profile {
   certificates: any[];
   submissions: any[];
   wp_submissions: any[];
+  match_score_skills?: number;
+  match_score_projects?: number;
+  match_score_perf?: number;
 }
 
 export default function CandidateProfilePage() {
