@@ -25,6 +25,21 @@ import recruiterRoutes from './recruiterRoutes.js';
 import notificationRoutes from './notificationRoutes.js';
 import aiRoutes from './aiRoutes.js';
 import supabase from '../config/supabaseClient.js';
+import { normalizeAvatarUrl } from '../utils/storageService.js';
+
+/**
+ * Normalize avatar URLs on a profiles sub-object returned by Supabase joins.
+ * Handles both { profile_picture_url, avatar_url } shapes.
+ * Returns the profiles object with URLs rewritten — does not mutate input.
+ */
+const normalizeProfileAvatars = (profiles) => {
+  if (!profiles) return profiles;
+  return {
+    ...profiles,
+    profile_picture_url: normalizeAvatarUrl(profiles.profile_picture_url),
+    avatar_url: normalizeAvatarUrl(profiles.avatar_url),
+  };
+};
 
 const router = express.Router();
 
@@ -134,7 +149,11 @@ router.get('/public/alumni', async (req, res) => {
       .order('created_at', { ascending: false });
 
     if (error) return res.status(200).json({ success: true, data: { alumni: [] } });
-    return res.status(200).json({ success: true, data: { alumni: data || [] } });
+    const normalized = (data || []).map(a => ({
+      ...a,
+      profiles: normalizeProfileAvatars(a.profiles),
+    }));
+    return res.status(200).json({ success: true, data: { alumni: normalized } });
   } catch {
     return res.status(200).json({ success: true, data: { alumni: [] } });
   }
@@ -157,7 +176,11 @@ router.get('/public/alumni/:id', async (req, res) => {
       .single();
 
     if (error || !data) return res.status(404).json({ success: false, message: 'Alumni not found' });
-    return res.status(200).json({ success: true, data });
+    const normalized = {
+      ...data,
+      profiles: normalizeProfileAvatars(data.profiles),
+    };
+    return res.status(200).json({ success: true, data: normalized });
   } catch {
     return res.status(404).json({ success: false, message: 'Alumni not found' });
   }
@@ -355,6 +378,10 @@ router.get('/public/stats', async (req, res) => {
     ]);
 
     const profiles = profilesRes.data || [];
+    const normalizedAlumni = (alumniRes.data || []).map(a => ({
+      ...a,
+      profiles: normalizeProfileAvatars(a.profiles),
+    }));
     res.status(200).json({
       success: true,
       data: {
@@ -365,7 +392,7 @@ router.get('/public/stats', async (req, res) => {
           total_certificates: (certsRes.data || []).length,
         },
         featured_offerings: offeringsRes.data || [],
-        alumni: alumniRes.data || [],
+        alumni: normalizedAlumni,
       },
     });
   } catch (err) {

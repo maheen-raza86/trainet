@@ -8,6 +8,7 @@ import logger from '../utils/logger.js';
 import { BadRequestError, UnauthorizedError } from '../utils/errors.js';
 import { writeLog } from './adminService.js';
 import { updateLastLogin } from './adminService.js';
+import { normalizeAvatarUrl } from '../utils/storageService.js';
 
 /**
  * Sign up a new user
@@ -205,8 +206,8 @@ export const signIn = async (credentials) => {
         firstName: profileData.first_name,
         lastName: profileData.last_name,
         role: profileData.role,
-        profile_picture_url: profileData.profile_picture_url || null,
-        avatar_url: profileData.avatar_url || null,
+        profile_picture_url: normalizeAvatarUrl(profileData.profile_picture_url) || null,
+        avatar_url: normalizeAvatarUrl(profileData.avatar_url) || null,
       },
     };
   } catch (error) {

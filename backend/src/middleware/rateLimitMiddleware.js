@@ -34,7 +34,7 @@ export const authLimiter =
     ? (req, res, next) => next()
     : rateLimit({
         windowMs: 15 * 60 * 1000, // 15 minutes
-        max: 20, // raised from 5 → 20 to support multi-account testing
+        max: 50, // 50 failed attempts per IP per 15 min — safe for demos/testing
         message: {
           success: false,
           message: 'Too many login attempts. Please wait 15 minutes before trying again.',

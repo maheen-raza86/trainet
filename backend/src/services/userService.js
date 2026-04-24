@@ -7,6 +7,7 @@ import { supabaseAdminClient } from '../config/supabaseClient.js';
 import supabase from '../config/supabaseClient.js';
 import logger from '../utils/logger.js';
 import { BadRequestError, NotFoundError, UnauthorizedError } from '../utils/errors.js';
+import { normalizeAvatarUrl } from '../utils/storageService.js';
 
 /**
  * Get user profile
@@ -35,8 +36,8 @@ export const getUserProfile = async (userId) => {
       skills: data.skills,
       interests: data.interests,
       visibility_in_talent_pool: data.visibility_in_talent_pool ?? false,
-      avatar_url: data.avatar_url,
-      profile_picture_url: data.profile_picture_url,
+      avatar_url: normalizeAvatarUrl(data.avatar_url),
+      profile_picture_url: normalizeAvatarUrl(data.profile_picture_url),
       emailVerified: data.email_verified,
       createdAt: data.created_at,
     };
@@ -152,8 +153,8 @@ export const updateUserProfile = async (userId, profileData) => {
       skills: data.skills,
       interests: data.interests,
       visibility_in_talent_pool: data.visibility_in_talent_pool ?? false,
-      avatar_url: data.avatar_url,
-      profile_picture_url: data.profile_picture_url,
+      avatar_url: normalizeAvatarUrl(data.avatar_url),
+      profile_picture_url: normalizeAvatarUrl(data.profile_picture_url),
     };
   } catch (error) {
     if (

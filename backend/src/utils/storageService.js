@@ -136,3 +136,45 @@ export const isSupabaseUrl = (url) => {
   if (!url) return false;
   return url.includes('.supabase.co/storage/') || url.startsWith('https://');
 };
+
+/**
+ * Normalize an avatar / profile-picture URL stored in the database.
+ *
+ * Old rows written during local development contain:
+ *   http://localhost:5000/uploads/avatars/...
+ *   http://localhost:5173/uploads/avatars/...
+ *
+ * In production those URLs are unreachable.  This function rewrites any
+ * localhost-based /uploads/... path to use the real BACKEND_URL so that
+ * existing records display correctly without a database migration.
+ *
+ * Supabase Storage URLs (https://*.supabase.co/storage/...) are returned
+ * unchanged — they are already absolute and correct.
+ *
+ * @param {string|null} url - Raw URL from the database
+ * @returns {string|null}   - Production-safe URL, or null if input is falsy
+ */
+export const normalizeAvatarUrl = (url) => {
+  if (!url) return null;
+
+  // Already a Supabase Storage URL or any other https URL — return as-is
+  if (url.startsWith('https://')) return url;
+
+  // Rewrite localhost /uploads/... paths to the production backend URL
+  // Matches: http://localhost:<port>/uploads/...
+  const localhostPattern = /^https?:\/\/localhost(:\d+)?(\/uploads\/.+)$/;
+  const match = url.match(localhostPattern);
+  if (match) {
+    const backendUrl = process.env.BACKEND_URL || '';
+    // In production BACKEND_URL is set; in dev fall back to the original URL
+    return backendUrl ? `${backendUrl}${match[2]}` : url;
+  }
+
+  // Relative path like /uploads/avatars/... — prepend backend URL
+  if (url.startsWith('/uploads/')) {
+    const backendUrl = process.env.BACKEND_URL || '';
+    return backendUrl ? `${backendUrl}${url}` : url;
+  }
+
+  return url;
+};
