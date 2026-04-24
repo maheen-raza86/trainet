@@ -11,11 +11,21 @@ import json
 from groq import Groq
 from dotenv import load_dotenv
 
-# Load GROQ_API_KEY from the .env file in this folder
+# Load .env file for local development.
+# In production (Render) GROQ_API_KEY is set as an environment variable
+# in the dashboard — load_dotenv() will NOT override an already-set env var.
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+if not GROQ_API_KEY or GROQ_API_KEY == "your_groq_api_key_here":
+    raise EnvironmentError(
+        "GROQ_API_KEY is not set or is still a placeholder. "
+        "Set it in the Render environment variables dashboard."
+    )
+
 # Create the Groq client
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+client = Groq(api_key=GROQ_API_KEY)
 
 
 def grade_assignment(question: str, answer: str) -> dict:

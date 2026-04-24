@@ -25,6 +25,31 @@ const PLAGIARISM_SCRIPT = path.join(AI_DIR, 'run_plagiarism.py');
 
 console.log('[aiEvaluationService] AI_DIR =', AI_DIR);
 console.log('[aiEvaluationService] GRADING_SCRIPT =', GRADING_SCRIPT);
+console.log('[aiEvaluationService] GROQ_API_KEY present:', !!process.env.GROQ_API_KEY);
+
+// ─────────────────────────────────────────────
+// PYTHON EXECUTABLE DETECTION
+// ─────────────────────────────────────────────
+
+/**
+ * Resolve the correct Python executable name for the current platform.
+ * Render (Linux) uses 'python3'; Windows local dev uses 'python'.
+ * We probe once at startup and cache the result.
+ */
+const resolvePythonExecutable = () => {
+  for (const candidate of ['python3', 'python']) {
+    const probe = spawnSync(candidate, ['--version'], { encoding: 'utf8', timeout: 5000 });
+    if (!probe.error && probe.status === 0) {
+      console.log(`[aiEvaluationService] Python executable: "${candidate}" (${(probe.stdout || probe.stderr || '').trim()})`);
+      return candidate;
+    }
+  }
+  // Neither found — log clearly so Render logs show the real problem
+  console.error('[aiEvaluationService] FATAL: No Python executable found (tried python3, python). Install Python on the server.');
+  return 'python3'; // return a default; spawnSync will fail with ENOENT and log it
+};
+
+const PYTHON_EXEC = resolvePythonExecutable();
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -37,10 +62,10 @@ console.log('[aiEvaluationService] GRADING_SCRIPT =', GRADING_SCRIPT);
 const runPython = (scriptPath, payload, timeoutMs = 30000) => {
   const input = JSON.stringify(payload);
 
-  console.log(`[aiEvaluationService] Running: python "${scriptPath}"`);
+  console.log(`[aiEvaluationService] Running: ${PYTHON_EXEC} "${scriptPath}"`);
   console.log(`[aiEvaluationService] Input payload keys: ${Object.keys(payload).join(', ')}`);
 
-  const result = spawnSync('python', [scriptPath], {
+  const result = spawnSync(PYTHON_EXEC, [scriptPath], {
     input,
     encoding: 'utf8',
     timeout: timeoutMs,
