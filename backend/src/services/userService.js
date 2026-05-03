@@ -67,6 +67,13 @@ export const updateUserProfile = async (userId, profileData) => {
 
     // Build update object with only provided fields
     const updateData = {};
+
+    // Avatar removal — explicit null means "clear the photo"
+    // Must be checked before the empty-guard so it is never rejected
+    if (profileData.profile_picture_url === null || profileData.avatar_url === null) {
+      updateData.profile_picture_url = null;
+      updateData.avatar_url = null;
+    }
     
     if (firstName !== undefined) {
       // Validate first name
