@@ -130,10 +130,30 @@ export const patchProfile = async (req, res, next) => {
       updatePayload.profile_picture_url = publicUrl;
     }
 
-    // If the client explicitly requests avatar removal, null out both URL columns
+    // If the client explicitly requests avatar removal, null out both URL columns.
+    // This arrives as JSON { removeAvatar: true } — no file upload involved.
     if (req.body.removeAvatar === 'true' || req.body.removeAvatar === true) {
       updatePayload.profile_picture_url = null;
       updatePayload.avatar_url = null;
+    }
+
+    // Guard: if nothing meaningful was provided, return early with a clear message
+    const hasUpdate =
+      updatePayload.firstName !== undefined ||
+      updatePayload.lastName !== undefined ||
+      updatePayload.bio !== undefined ||
+      updatePayload.skills !== undefined ||
+      updatePayload.interests !== undefined ||
+      updatePayload.visibility_in_talent_pool !== undefined ||
+      updatePayload.profile_picture_url !== undefined ||
+      updatePayload.avatar_url !== undefined;
+
+    if (!hasUpdate) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid fields provided for update',
+        error: 'Validation Error',
+      });
     }
 
     const updatedProfile = await userService.updateUserProfile(userId, updatePayload);

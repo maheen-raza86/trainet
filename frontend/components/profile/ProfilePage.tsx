@@ -11,6 +11,7 @@ import {
   CameraIcon,
   KeyIcon,
   ExclamationTriangleIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 
 interface ProfileData {
@@ -46,6 +47,7 @@ export default function ProfilePage() {
   const [visibleInTalentPool, setVisibleInTalentPool] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [removingAvatar, setRemovingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,29 +88,24 @@ export default function ProfilePage() {
     }
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
+    setShowAvatarMenu(false);
   };
 
+  // Send JSON — no file involved, FormData is not needed and causes multer parsing issues
   const handleRemoveAvatar = async () => {
-    if (!profile?.profile_picture_url && !profile?.avatar_url) return;
+    setShowAvatarMenu(false);
     try {
       setRemovingAvatar(true);
       setMsg(null);
-      const formData = new FormData();
-      formData.append('removeAvatar', 'true');
-      const res: any = await apiClient.patch('/users/profile', formData);
-      const updated = res.data;
-      setProfile(prev => prev ? {
-        ...prev,
-        profile_picture_url: null,
-        avatar_url: null,
-      } : prev);
+
+      await apiClient.patch('/users/profile', { removeAvatar: true });
+
+      // Update local state immediately
+      setProfile(prev => prev ? { ...prev, profile_picture_url: null, avatar_url: null } : prev);
       setAvatarPreview(null);
+      setAvatarFile(null);
       if (user) {
-        setUser({
-          ...user,
-          profile_picture_url: null,
-          avatar_url: null,
-        });
+        setUser({ ...user, profile_picture_url: null, avatar_url: null });
       }
       setMsg({ type: 'success', text: 'Profile photo removed' });
     } catch (err: any) {
@@ -140,7 +137,6 @@ export default function ProfilePage() {
 
       setProfile(prev => prev ? { ...prev, ...updated } : updated);
 
-      // Sync name + profile picture into AuthContext so header updates immediately
       if (user) {
         setUser({
           ...user,
@@ -155,6 +151,7 @@ export default function ProfilePage() {
       setIsEditing(false);
       setAvatarFile(null);
       setAvatarPreview(null);
+      setShowAvatarMenu(false);
     } catch (err: any) {
       setMsg({ type: 'error', text: err.message || 'Failed to update profile' });
     } finally {
@@ -173,6 +170,7 @@ export default function ProfilePage() {
     }
     setAvatarFile(null);
     setAvatarPreview(null);
+    setShowAvatarMenu(false);
     setIsEditing(false);
     setMsg(null);
   };
@@ -195,11 +193,14 @@ export default function ProfilePage() {
     }
   };
 
-  // Resolve avatar URL — DB now stores full absolute URL, use directly
+  // Resolve avatar: show preview if a new file was selected, else use stored URL
   const avatarSrc = avatarPreview
     || profile?.profile_picture_url
     || profile?.avatar_url
     || null;
+
+  // Whether the user currently has a saved photo (not just a preview)
+  const hasSavedPhoto = !!(profile?.profile_picture_url || profile?.avatar_url);
 
   if (loading) {
     return (
@@ -220,7 +221,9 @@ export default function ProfilePage() {
           <div className={`p-4 rounded-xl border flex items-center space-x-2 ${
             msg.type === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'
           }`}>
-            {msg.type === 'success' ? <CheckCircleIcon className="w-5 h-5 flex-shrink-0" /> : <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />}
+            {msg.type === 'success'
+              ? <CheckCircleIcon className="w-5 h-5 flex-shrink-0" />
+              : <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />}
             <span className="text-sm flex-1">{msg.text}</span>
             <button onClick={() => setMsg(null)}><XMarkIcon className="w-4 h-4" /></button>
           </div>
@@ -231,9 +234,11 @@ export default function ProfilePage() {
           {/* Header banner */}
           <div className="h-24 bg-gradient-to-r from-purple-600 to-blue-600" />
 
-          {/* Avatar + name */}
+          {/* Avatar + action buttons */}
           <div className="px-6 pb-6">
             <div className="flex items-end justify-between -mt-12 mb-4">
+
+              {/* ── Avatar ── */}
               <div className="relative">
                 <div className="w-24 h-24 rounded-2xl border-4 border-white shadow-lg overflow-hidden bg-gradient-to-br from-purple-400 to-blue-400 flex items-center justify-center">
                   {avatarSrc ? (
@@ -245,45 +250,70 @@ export default function ProfilePage() {
                     </span>
                   )}
                 </div>
-                {isEditing && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="absolute -bottom-1 -right-1 w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg hover:from-purple-600 hover:to-blue-600 transition"
-                  >
-                    <CameraIcon className="w-4 h-4 text-white" />
-                  </button>
-                )}
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-              </div>
 
-              {!isEditing ? (
-                <div className="flex items-center gap-2">
-                  {/* Remove Photo — only shown when a photo exists */}
-                  {(profile?.profile_picture_url || profile?.avatar_url) && (
+                {/* Edit-mode overlay: pencil icon on avatar → opens dropdown */}
+                {isEditing && (
+                  <div className="relative">
                     <button
                       type="button"
-                      onClick={handleRemoveAvatar}
-                      disabled={removingAvatar}
-                      className="flex items-center space-x-1.5 px-3 py-2 border border-red-200 text-red-500 rounded-xl text-sm hover:bg-red-50 transition disabled:opacity-50"
+                      onClick={() => setShowAvatarMenu(prev => !prev)}
+                      className="absolute -bottom-1 -right-1 w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg hover:from-purple-600 hover:to-blue-600 transition"
+                      title="Change photo"
                     >
-                      <XMarkIcon className="w-4 h-4" />
-                      <span>{removingAvatar ? 'Removing...' : 'Remove Photo'}</span>
+                      <PencilIcon className="w-4 h-4 text-white" />
                     </button>
-                  )}
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl text-sm hover:from-purple-600 hover:to-blue-600 transition"
-                  >
-                    <PencilIcon className="w-4 h-4" />
-                    <span>Edit Profile</span>
-                  </button>
-                </div>
-              ) : null}
+
+                    {/* Dropdown menu */}
+                    {showAvatarMenu && (
+                      <div className="absolute left-0 top-8 z-20 w-44 bg-white rounded-xl shadow-xl border border-gray-100 py-1 overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => { fileInputRef.current?.click(); }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition"
+                        >
+                          <CameraIcon className="w-4 h-4 shrink-0" />
+                          Change Photo
+                        </button>
+                        {hasSavedPhoto && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveAvatar}
+                            disabled={removingAvatar}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition disabled:opacity-50"
+                          >
+                            <TrashIcon className="w-4 h-4 shrink-0" />
+                            {removingAvatar ? 'Removing…' : 'Remove Photo'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+              </div>
+
+              {/* ── Right-side action button ── */}
+              {!isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl text-sm hover:from-purple-600 hover:to-blue-600 transition"
+                >
+                  <PencilIcon className="w-4 h-4" />
+                  <span>Edit Profile</span>
+                </button>
+              )}
             </div>
 
+            {/* ── View mode ── */}
             {!isEditing ? (
-              /* View mode */
               <div className="space-y-4">
                 <div>
                   <h2 className="text-xl font-bold text-gray-800">{profile?.firstName} {profile?.lastName}</h2>
@@ -332,7 +362,7 @@ export default function ProfilePage() {
                 )}
               </div>
             ) : (
-              /* Edit mode */
+              /* ── Edit mode ── */
               <form onSubmit={handleSave} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -350,7 +380,9 @@ export default function ProfilePage() {
                 {!isAdmin && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Bio <span className="text-gray-400 font-normal">(max 500 chars)</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Bio <span className="text-gray-400 font-normal">(max 500 chars)</span>
+                      </label>
                       <textarea value={bio} onChange={e => setBio(e.target.value)} rows={3} maxLength={500}
                         className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-400 resize-none"
                         placeholder="Tell us about yourself..." />
@@ -358,14 +390,18 @@ export default function ProfilePage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Skills <span className="text-gray-400 font-normal">(comma separated)</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Skills <span className="text-gray-400 font-normal">(comma separated)</span>
+                      </label>
                       <input value={skills} onChange={e => setSkills(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-400"
                         placeholder="JavaScript, React, Python..." />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Interests <span className="text-gray-400 font-normal">(comma separated)</span></label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Interests <span className="text-gray-400 font-normal">(comma separated)</span>
+                      </label>
                       <input value={interests} onChange={e => setInterests(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-400"
                         placeholder="Machine Learning, Open Source, UI Design..." />
@@ -382,7 +418,9 @@ export default function ProfilePage() {
                         />
                         <label htmlFor="talent-pool-visibility" className="text-sm text-gray-700 cursor-pointer">
                           <span className="font-medium">Allow recruiters to view my profile in Talent Pool</span>
-                          <p className="text-xs text-gray-500 mt-0.5">When enabled, your profile will appear in recruiter searches and recommendations.</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            When enabled, your profile will appear in recruiter searches and recommendations.
+                          </p>
                         </label>
                       </div>
                     )}
@@ -444,6 +482,7 @@ export default function ProfilePage() {
             </form>
           )}
         </div>
+
       </div>
     </DashboardLayout>
   );
