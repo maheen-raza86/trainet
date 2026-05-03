@@ -11,6 +11,7 @@ interface CourseOffering {
   hours_per_week: number;
   outline: string;
   status: string;
+  end_date: string | null;
   courses: {
     id: string;
     title: string;
@@ -30,8 +31,15 @@ interface Enrollment {
   course_offerings: CourseOffering;
 }
 
+interface CourseProgress {
+  submitted_assignments: number;
+  total_assignments: number;
+  progress: number; // 0–100
+}
+
 export default function StudentCourses() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [progressMap, setProgressMap] = useState<Map<string, CourseProgress>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +52,29 @@ export default function StudentCourses() {
       setLoading(true);
       setError(null);
       const response: any = await apiClient.get('/enrollments/my');
-      setEnrollments(response.data?.enrollments || []);
+      const rawEnrollments: Enrollment[] = response.data?.enrollments || [];
+      setEnrollments(rawEnrollments);
+
+      // Fetch real progress for every enrollment from the progress API
+      // (same source used by the course detail page)
+      const map = new Map<string, CourseProgress>();
+      await Promise.all(
+        rawEnrollments.map(async (e) => {
+          if (!e.offering_id) return;
+          try {
+            const pRes: any = await apiClient.get(`/progress/${e.offering_id}`);
+            map.set(e.offering_id, pRes.data as CourseProgress);
+          } catch {
+            // Fall back to the enrollment's stored progress field
+            map.set(e.offering_id, {
+              submitted_assignments: 0,
+              total_assignments: 0,
+              progress: e.progress || 0,
+            });
+          }
+        })
+      );
+      setProgressMap(map);
     } catch (err: any) {
       console.error('Error fetching courses:', err);
       setError(err.message || 'Failed to load courses');
@@ -102,42 +132,63 @@ export default function StudentCourses() {
         {/* Courses Grid */}
         {enrollments.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {enrollments.map((enrollment) => (
-              <div key={enrollment.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition">
-                {/* Course Header */}
-                <div className="h-32 bg-gradient-to-br from-primary-400 to-secondary-500 flex items-center justify-center">
-                  <span className="text-6xl">📚</span>
-                </div>
+            {enrollments.map((enrollment) => {
+              const prog = progressMap.get(enrollment.offering_id);
+              const pct = prog?.progress ?? enrollment.progress ?? 0;
+              const submitted = prog?.submitted_assignments ?? 0;
+              const total = prog?.total_assignments ?? 0;
+              const offering = enrollment.course_offerings;
+              const isCourseEnded =
+                offering?.status === 'completed' ||
+                (!!offering?.end_date && new Date(offering.end_date) < new Date());
 
-                {/* Course Content */}
-                <div className="p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">{enrollment.course_offerings.courses.title}</h3>
-                  <p className="text-sm text-gray-500 mb-4 line-clamp-2">{enrollment.course_offerings.courses.description}</p>
-
-                  {/* Progress Bar */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-600">Progress</span>
-                      <span className="text-xs font-medium text-gray-900">{enrollment.progress || 0}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all"
-                        style={{ width: `${enrollment.progress || 0}%` }}
-                      ></div>
-                    </div>
+              return (
+                <div key={enrollment.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition">
+                  {/* Course Header */}
+                  <div className="h-32 bg-gradient-to-br from-primary-400 to-secondary-500 flex items-center justify-center relative">
+                    <span className="text-6xl">📚</span>
+                    {isCourseEnded && (
+                      <span className="absolute top-3 right-3 px-2 py-0.5 bg-white/20 backdrop-blur-sm text-white text-xs font-medium rounded-full border border-white/30">
+                        Ended
+                      </span>
+                    )}
                   </div>
 
-                  {/* Action Button */}
-                  <Link
-                    href={`/student/courses/${enrollment.offering_id}`}
-                    className="block w-full text-center px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition"
-                  >
-                    View Course
-                  </Link>
+                  {/* Course Content */}
+                  <div className="p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">{offering?.courses?.title}</h3>
+                    <p className="text-sm text-gray-500 mb-4 line-clamp-2">{offering?.courses?.description}</p>
+
+                    {/* Progress Bar */}
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-600">Progress</span>
+                        <span className="text-xs font-medium text-gray-900">{pct}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all"
+                          style={{ width: `${Math.min(100, pct)}%` }}
+                        />
+                      </div>
+                      {total > 0 && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          {submitted}/{total} assignment{total !== 1 ? 's' : ''} completed
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Action Button */}
+                    <Link
+                      href={`/student/courses/${enrollment.offering_id}`}
+                      className="block w-full text-center px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition"
+                    >
+                      View Course
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">

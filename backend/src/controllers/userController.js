@@ -130,6 +130,12 @@ export const patchProfile = async (req, res, next) => {
       updatePayload.profile_picture_url = publicUrl;
     }
 
+    // If the client explicitly requests avatar removal, null out both URL columns
+    if (req.body.removeAvatar === 'true' || req.body.removeAvatar === true) {
+      updatePayload.profile_picture_url = null;
+      updatePayload.avatar_url = null;
+    }
+
     const updatedProfile = await userService.updateUserProfile(userId, updatePayload);
 
     res.status(200).json({

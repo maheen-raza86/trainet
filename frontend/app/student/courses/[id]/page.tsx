@@ -209,8 +209,13 @@ export default function StudentCourseDetail() {
 
         {/* Course Ended Banner */}
         {isCourseEnded&&(
-          <div className="bg-gray-100 border border-gray-300 rounded-2xl p-5 text-center">
-            <AcademicCapIcon className="w-10 h-10 text-gray-400 mx-auto mb-2"/>
+          <div className="bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-2xl p-5 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <AcademicCapIcon className="w-10 h-10 text-gray-400"/>
+              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border border-green-200 tracking-wide uppercase">
+                ✓ Course Completed
+              </span>
+            </div>
             <p className="font-semibold text-gray-700">This course has ended.</p>
             <p className="text-sm text-gray-500 mt-1">You can still view your grades, materials, and download your certificate below.</p>
           </div>

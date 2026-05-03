@@ -46,6 +46,7 @@ export default function ProfilePage() {
   const [visibleInTalentPool, setVisibleInTalentPool] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [removingAvatar, setRemovingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Password state
@@ -85,6 +86,36 @@ export default function ProfilePage() {
     }
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!profile?.profile_picture_url && !profile?.avatar_url) return;
+    try {
+      setRemovingAvatar(true);
+      setMsg(null);
+      const formData = new FormData();
+      formData.append('removeAvatar', 'true');
+      const res: any = await apiClient.patch('/users/profile', formData);
+      const updated = res.data;
+      setProfile(prev => prev ? {
+        ...prev,
+        profile_picture_url: null,
+        avatar_url: null,
+      } : prev);
+      setAvatarPreview(null);
+      if (user) {
+        setUser({
+          ...user,
+          profile_picture_url: null,
+          avatar_url: null,
+        });
+      }
+      setMsg({ type: 'success', text: 'Profile photo removed' });
+    } catch (err: any) {
+      setMsg({ type: 'error', text: err.message || 'Failed to remove photo' });
+    } finally {
+      setRemovingAvatar(false);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -227,13 +258,27 @@ export default function ProfilePage() {
               </div>
 
               {!isEditing ? (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl text-sm hover:from-purple-600 hover:to-blue-600 transition"
-                >
-                  <PencilIcon className="w-4 h-4" />
-                  <span>Edit Profile</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Remove Photo — only shown when a photo exists */}
+                  {(profile?.profile_picture_url || profile?.avatar_url) && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      disabled={removingAvatar}
+                      className="flex items-center space-x-1.5 px-3 py-2 border border-red-200 text-red-500 rounded-xl text-sm hover:bg-red-50 transition disabled:opacity-50"
+                    >
+                      <XMarkIcon className="w-4 h-4" />
+                      <span>{removingAvatar ? 'Removing...' : 'Remove Photo'}</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl text-sm hover:from-purple-600 hover:to-blue-600 transition"
+                  >
+                    <PencilIcon className="w-4 h-4" />
+                    <span>Edit Profile</span>
+                  </button>
+                </div>
               ) : null}
             </div>
 
