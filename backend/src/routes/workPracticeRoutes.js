@@ -7,20 +7,21 @@ import express from 'express';
 import * as wpController from '../controllers/workPracticeController.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
 import { authorizeRoles } from '../middleware/roleMiddleware.js';
+import { requireApprovedTrainer } from '../middleware/trainerMiddleware.js';
 import upload from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
 // ── Trainer routes ─────────────────────────────────────────────────────────
 
-// Create task (with optional resource file)
-router.post('/', verifyToken, authorizeRoles('trainer'), upload.single('resource'), wpController.createTask);
+// Create task (with optional resource file) — approved trainers only
+router.post('/', verifyToken, authorizeRoles('trainer'), requireApprovedTrainer, upload.single('resource'), wpController.createTask);
 
 // Get trainer's own tasks
 router.get('/trainer', verifyToken, authorizeRoles('trainer'), wpController.getTrainerTasks);
 
-// Update task
-router.put('/:id', verifyToken, authorizeRoles('trainer'), wpController.updateTask);
+// Update task — approved trainers only
+router.put('/:id', verifyToken, authorizeRoles('trainer'), requireApprovedTrainer, wpController.updateTask);
 
 // Delete task
 router.delete('/:id', verifyToken, authorizeRoles('trainer'), wpController.deleteTask);

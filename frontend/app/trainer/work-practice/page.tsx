@@ -2,6 +2,7 @@
 
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import apiClient from '@/lib/api/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
@@ -33,6 +34,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export default function TrainerWorkPractice() {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<WPTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -40,6 +42,9 @@ export default function TrainerWorkPractice() {
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<WPTask | null>(null);
+
+  // Backward compat: null = legacy approved trainer
+  const isApproved = (user?.trainerStatus ?? 'approved') === 'approved';
 
   // Form state
   const [title, setTitle] = useState('');
@@ -80,6 +85,10 @@ export default function TrainerWorkPractice() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isApproved) {
+      setMsg({ type: 'error', text: 'Your trainer account is not approved. You cannot create or edit tasks.' });
+      return;
+    }
     try {
       setSaving(true);
       setMsg(null);
@@ -150,13 +159,29 @@ export default function TrainerWorkPractice() {
             <p className="text-sm text-gray-500">Real-world projects and coding challenges</p>
           </div>
           <button
-            onClick={() => { resetForm(); setShowForm(!showForm); }}
-            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl text-sm hover:from-purple-600 hover:to-blue-600 transition"
+            onClick={() => { if (!isApproved) return; resetForm(); setShowForm(!showForm); }}
+            disabled={!isApproved}
+            title={!isApproved ? 'Your trainer account is not approved' : undefined}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm transition ${
+              isApproved
+                ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:from-purple-600 hover:to-blue-600'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
           >
             <PlusIcon className="w-4 h-4" />
             <span>Create Task</span>
           </button>
         </div>
+
+        {/* Approval banner */}
+        {!isApproved && (
+          <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+            <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 shrink-0" />
+            <p className="text-sm text-yellow-800">
+              Your trainer account is not approved. You cannot create tasks until an admin approves your application.
+            </p>
+          </div>
+        )}
 
         {/* Create / Edit Form */}
         {showForm && (

@@ -4,7 +4,9 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import CreateCourseModal from '@/components/trainer/CreateCourseModal';
 import Link from 'next/link';
 import apiClient from '@/lib/api/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 interface Course {
   id: string;
@@ -22,10 +24,14 @@ interface Course {
 }
 
 export default function TrainerCourses() {
+  const { user } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Backward compat: null = legacy approved trainer
+  const isApproved = (user?.trainerStatus ?? 'approved') === 'approved';
 
   useEffect(() => {
     fetchCourses();
@@ -89,13 +95,29 @@ export default function TrainerCourses() {
             <h1 className="text-2xl font-bold text-gray-900">My Course Offerings</h1>
             <p className="text-gray-600 mt-1">Manage your course offerings and track student progress</p>
           </div>
-          <button 
-            onClick={() => setIsCreateModalOpen(true)}
-            className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition"
+          <button
+            onClick={() => isApproved && setIsCreateModalOpen(true)}
+            disabled={!isApproved}
+            title={!isApproved ? 'Your trainer account is not approved' : undefined}
+            className={`px-4 py-2 rounded-lg transition text-sm font-medium ${
+              isApproved
+                ? 'bg-primary-500 text-white hover:bg-primary-600'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
           >
             Create New Course Offering
           </button>
         </div>
+
+        {/* Approval banner */}
+        {!isApproved && (
+          <div className="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+            <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 shrink-0" />
+            <p className="text-sm text-yellow-800">
+              Your trainer account is not approved. You cannot create course offerings until an admin approves your application.
+            </p>
+          </div>
+        )}
 
         {/* Courses Grid */}
         {courses.length > 0 ? (
@@ -152,11 +174,16 @@ export default function TrainerCourses() {
             <div className="text-6xl mb-4">📚</div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">No Course Offerings Yet</h3>
             <p className="text-gray-600 mb-6">Create your first course offering to get started</p>
-            <button 
-              onClick={() => setIsCreateModalOpen(true)}
-              className="px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition"
+            <button
+              onClick={() => isApproved && setIsCreateModalOpen(true)}
+              disabled={!isApproved}
+              className={`px-6 py-3 rounded-lg transition ${
+                isApproved
+                  ? 'bg-primary-500 text-white hover:bg-primary-600'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
             >
-              Create Your First Course Offering
+              {isApproved ? 'Create Your First Course Offering' : 'Account Pending Approval'}
             </button>
           </div>
         )}
