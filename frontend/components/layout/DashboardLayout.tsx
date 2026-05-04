@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { WifiIcon } from '@heroicons/react/24/outline';
@@ -16,13 +16,9 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children, title, subtitle }: DashboardLayoutProps) {
   const { user, isAuthenticated, isLoading, isOffline } = useAuth();
   const router = useRouter();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
-    // Only redirect to login when:
-    // 1. Auth has finished loading (isLoading = false)
-    // 2. The user is genuinely not authenticated (no token/user in storage)
-    // 3. The device is ONLINE — never redirect while offline because the
-    //    session may still be valid but API calls are failing due to no network.
     if (!isLoading && !isAuthenticated && !isOffline) {
       router.push('/login');
     }
@@ -33,7 +29,7 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 animate-pulse">
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-blue-400 rounded-xl animate-spin"></div>
+            <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-blue-400 rounded-xl animate-spin" />
           </div>
           <p className="text-white/80 text-lg">Loading your dashboard...</p>
         </div>
@@ -41,8 +37,6 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
     );
   }
 
-  // While offline and not authenticated: show a holding screen instead of
-  // redirecting to login — the session may still be valid once reconnected.
   if (!isAuthenticated && isOffline) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
@@ -57,18 +51,20 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
     );
   }
 
-  if (!isAuthenticated || !user) {
-    return null;
-  }
+  if (!isAuthenticated || !user) return null;
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
-      {/* Sidebar */}
-      <Sidebar role={user.role as any} />
+    <div className="flex min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 overflow-x-hidden">
+      {/* Sidebar — passes mobile state */}
+      <Sidebar
+        role={user.role as any}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+      />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
-        {/* Offline banner — shown at the very top when disconnected */}
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-h-screen min-w-0">
+        {/* Offline banner */}
         {isOffline && (
           <div className="bg-amber-500 text-white text-xs font-medium px-4 py-2 flex items-center justify-center gap-2 z-50 shrink-0">
             <WifiIcon className="w-4 h-4 shrink-0" />
@@ -76,11 +72,15 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
           </div>
         )}
 
-        {/* Header */}
-        <Header title={title} subtitle={subtitle} />
+        {/* Header — receives hamburger callback */}
+        <Header
+          title={title}
+          subtitle={subtitle}
+          onMenuClick={() => setMobileSidebarOpen(true)}
+        />
 
-        {/* Page Content */}
-        <main className="flex-1 p-6 overflow-y-auto">
+        {/* Page content */}
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto overflow-x-hidden">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

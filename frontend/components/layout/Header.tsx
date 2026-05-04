@@ -11,6 +11,7 @@ import {
   UserIcon,
   ArrowLeftOnRectangleIcon,
   CheckIcon,
+  Bars3Icon,
 } from '@heroicons/react/24/outline';
 
 interface Notification {
@@ -25,9 +26,11 @@ interface Notification {
 interface HeaderProps {
   title?: string;
   subtitle?: string;
+  /** Called when the hamburger button is tapped on mobile */
+  onMenuClick?: () => void;
 }
 
-export default function Header({ title = 'Welcome back!', subtitle = "Here's what's happening" }: HeaderProps) {
+export default function Header({ title = 'Welcome back!', subtitle = "Here's what's happening", onMenuClick }: HeaderProps) {
   const { user, logout } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -83,11 +86,20 @@ export default function Header({ title = 'Welcome back!', subtitle = "Here's wha
   };
 
   return (
-    <header className="bg-white/80 backdrop-blur-lg border-b border-white/20 px-6 py-4 sticky top-0 z-40">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">{title}</h1>
-          <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
+    <header className="bg-white/80 backdrop-blur-lg border-b border-white/20 px-4 md:px-6 py-4 sticky top-0 z-40">
+      <div className="flex items-center justify-between gap-3">
+        {/* Hamburger — mobile only */}
+        <button
+          onClick={onMenuClick}
+          className="md:hidden p-2 rounded-xl bg-white/60 border border-white/30 hover:bg-white/80 transition shrink-0"
+          aria-label="Open menu"
+        >
+          <Bars3Icon className="w-5 h-5 text-gray-600" />
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg md:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent truncate">{title}</h1>
+          <p className="text-xs md:text-sm text-gray-600 mt-0.5 hidden sm:block">{subtitle}</p>
         </div>
 
         <div className="flex items-center space-x-4">
