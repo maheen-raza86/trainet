@@ -8,6 +8,8 @@ import BrandLogo from '@/components/BrandLogo';
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const message = searchParams.get('message');
+  const next = searchParams.get('next');
+  const isTrainer = next === 'trainer-apply';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 flex items-center justify-center px-4 py-12">
@@ -46,6 +48,15 @@ function VerifyEmailContent() {
                 We've sent a verification link to your email address. Please check your inbox and
                 click the link to verify your account.
               </p>
+              {isTrainer && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-purple-800">
+                    <strong>Trainer account created!</strong>
+                    <br />
+                    After verifying your email, log in and submit your trainer application to get approved.
+                  </p>
+                </div>
+              )}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                 <p className="text-sm text-blue-800">
                   <strong>Didn't receive the email?</strong>

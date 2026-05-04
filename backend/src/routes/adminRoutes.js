@@ -6,6 +6,7 @@
 import express from 'express';
 import * as adminController from '../controllers/adminController.js';
 import * as courseOfferingController from '../controllers/courseOfferingController.js';
+import * as trainerAppController from '../controllers/trainerApplicationController.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
 import { authorizeRoles } from '../middleware/roleMiddleware.js';
 
@@ -48,5 +49,13 @@ router.get('/active-offerings/:id', adminController.getOfferingMonitorDetail);
 
 // Deep analytics
 router.get('/analytics', adminController.getAnalytics);
+
+// ── Trainer Verification ──────────────────────────────────────────────────
+// GET  /api/admin/trainers                          — list all trainers + status
+// GET  /api/admin/trainer-applications              — list applications (filter by ?status=)
+// PATCH /api/admin/trainer-applications/:id/review  — approve or reject
+router.get('/trainers', trainerAppController.listAllTrainers);
+router.get('/trainer-applications', trainerAppController.listApplications);
+router.patch('/trainer-applications/:trainerId/review', trainerAppController.reviewApplication);
 
 export default router;

@@ -75,6 +75,8 @@ export const signUp = async (userData) => {
           role,
           email_verified: false, // Will be updated when user verifies email
           verification_token: null, // Not needed with Supabase Auth
+          // New trainers start as 'pending' until approved by admin
+          trainer_status: role === 'trainer' ? 'pending' : null,
         },
       ])
       .select()
@@ -208,6 +210,8 @@ export const signIn = async (credentials) => {
         role: profileData.role,
         profile_picture_url: normalizeAvatarUrl(profileData.profile_picture_url) || null,
         avatar_url: normalizeAvatarUrl(profileData.avatar_url) || null,
+        // trainer_status: null means legacy trainer → treat as approved on frontend
+        trainerStatus: profileData.trainer_status ?? (profileData.role === 'trainer' ? 'approved' : null),
       },
     };
   } catch (error) {

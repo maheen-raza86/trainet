@@ -77,8 +77,12 @@ export default function SignupPage() {
 
       await signup(signupData);
 
-      // Redirect to verification message page
-      router.push('/verify-email?message=check');
+      // Trainers go to the verification application page; others go to email verification
+      if (signupData.role === 'trainer') {
+        router.push('/verify-email?message=check&next=trainer-apply');
+      } else {
+        router.push('/verify-email?message=check');
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Signup failed. Please try again.');
     } finally {

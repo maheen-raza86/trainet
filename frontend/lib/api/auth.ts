@@ -21,6 +21,7 @@ export interface User {
   role: string;
   profile_picture_url?: string | null;
   avatar_url?: string | null;
+  trainerStatus?: 'pending' | 'approved' | 'rejected' | null;
 }
 
 export interface AuthResponse {

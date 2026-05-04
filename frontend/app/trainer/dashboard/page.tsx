@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import apiClient from '@/lib/api/client';
+import Link from 'next/link';
 import {
   AcademicCapIcon,
   UsersIcon,
@@ -14,6 +15,8 @@ import {
   ArrowRightIcon,
   PlusIcon,
   EyeIcon,
+  ClockIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline';
 
 interface CourseOffering {
@@ -33,6 +36,12 @@ export default function TrainerDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Backward compat: null = legacy approved trainer
+  const trainerStatus = user?.trainerStatus ?? 'approved';
+  const isApproved = trainerStatus === 'approved';
+  const isPending  = trainerStatus === 'pending';
+  const isRejected = trainerStatus === 'rejected';
 
   useEffect(() => {
     if (!isLoading && isAuthenticated && user && user.role !== 'trainer') {
@@ -114,6 +123,39 @@ export default function TrainerDashboard() {
     <DashboardLayout title={`Welcome back, ${user?.firstName}!`} subtitle="Manage your courses and track student progress">
       <div className="space-y-8">
 
+        {/* ── Trainer status banner ── */}
+        {isPending && (
+          <div className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-2xl">
+            <ClockIcon className="w-6 h-6 text-yellow-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold text-yellow-800">Your trainer account is under review by admin</p>
+              <p className="text-sm text-yellow-600 mt-0.5">
+                You can browse the platform but cannot create courses or assignments until approved.
+              </p>
+            </div>
+            <Link href="/trainer/apply"
+              className="shrink-0 px-3 py-1.5 bg-yellow-100 text-yellow-800 rounded-xl text-xs font-medium hover:bg-yellow-200 transition">
+              View Application
+            </Link>
+          </div>
+        )}
+
+        {isRejected && (
+          <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl">
+            <XCircleIcon className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-semibold text-red-800">Your trainer application was not approved</p>
+              <p className="text-sm text-red-600 mt-0.5">
+                Please update your application and re-submit for admin review.
+              </p>
+            </div>
+            <Link href="/trainer/apply"
+              className="shrink-0 px-3 py-1.5 bg-red-100 text-red-800 rounded-xl text-xs font-medium hover:bg-red-200 transition">
+              Re-submit
+            </Link>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {stats.map((stat, i) => {
@@ -144,8 +186,14 @@ export default function TrainerDashboard() {
             <div className="p-6 border-b border-white/20 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-800">Recent Course Offerings</h2>
               <button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl hover:from-purple-600 hover:to-blue-600 transition hover:shadow-lg"
+                onClick={() => isApproved && setIsCreateModalOpen(true)}
+                disabled={!isApproved}
+                title={!isApproved ? 'Account pending approval' : undefined}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-xl transition hover:shadow-lg ${
+                  isApproved
+                    ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:from-purple-600 hover:to-blue-600'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
               >
                 <PlusIcon className="w-4 h-4" />
                 <span>New Offering</span>
@@ -179,7 +227,17 @@ export default function TrainerDashboard() {
                 <div className="text-center py-8">
                   <AcademicCapIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-500 mb-4">No course offerings yet</p>
-                  <button onClick={() => setIsCreateModalOpen(true)} className="px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl hover:from-purple-600 hover:to-blue-600 transition">Create First Offering</button>
+                  <button
+                    onClick={() => isApproved && setIsCreateModalOpen(true)}
+                    disabled={!isApproved}
+                    className={`px-6 py-3 rounded-xl transition ${
+                      isApproved
+                        ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:from-purple-600 hover:to-blue-600'
+                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {isApproved ? 'Create First Offering' : 'Pending Approval'}
+                  </button>
                 </div>
               )}
             </div>
@@ -212,8 +270,14 @@ export default function TrainerDashboard() {
                 <ArrowRightIcon className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
               </button>
               <button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-white/40 rounded-xl border border-white/30 hover:bg-white/60 transition group"
+                onClick={() => isApproved && setIsCreateModalOpen(true)}
+                disabled={!isApproved}
+                title={!isApproved ? 'Account pending approval' : undefined}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border border-white/30 transition group ${
+                  isApproved
+                    ? 'bg-white/40 hover:bg-white/60'
+                    : 'bg-gray-50 opacity-60 cursor-not-allowed'
+                }`}
               >
                 <div className="flex items-center gap-3">
                   <PlusIcon className="w-5 h-5 text-green-500" />

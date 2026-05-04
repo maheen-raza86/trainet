@@ -9,7 +9,6 @@ import {
   BellIcon,
   ChevronDownIcon,
   UserIcon,
-  Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
   CheckIcon,
 } from '@heroicons/react/24/outline';
@@ -82,8 +81,6 @@ export default function Header({ title = 'Welcome back!', subtitle = "Here's wha
     const map: Record<string, string> = { grade: '📊', enrollment: '🎓', certificate: '🏆', mentorship: '🤝', submission: '📝', assignment: '📋', info: 'ℹ️' };
     return map[type] || 'ℹ️';
   };
-
-  const isAdmin = user?.role === 'admin';
 
   return (
     <header className="bg-white/80 backdrop-blur-lg border-b border-white/20 px-6 py-4 sticky top-0 z-40">
@@ -173,12 +170,6 @@ export default function Header({ title = 'Welcome back!', subtitle = "Here's wha
                     className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                     <UserIcon className="w-4 h-4" /><span>View Profile</span>
                   </Link>
-                  {isAdmin && (
-                    <Link href="/admin/settings" onClick={() => setIsProfileOpen(false)}
-                      className="w-full flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                      <Cog6ToothIcon className="w-4 h-4" /><span>Settings</span>
-                    </Link>
-                  )}
                 </div>
                 <div className="border-t border-gray-100 pt-2">
                   <button onClick={handleLogout}

@@ -40,6 +40,8 @@ export const getUserProfile = async (userId) => {
       profile_picture_url: normalizeAvatarUrl(data.profile_picture_url),
       emailVerified: data.email_verified,
       createdAt: data.created_at,
+      // trainer_status: null = legacy trainer → treat as approved
+      trainerStatus: data.trainer_status ?? (data.role === 'trainer' ? 'approved' : null),
     };
   } catch (error) {
     if (error instanceof NotFoundError) {

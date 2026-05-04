@@ -24,6 +24,7 @@ import attendanceRoutes from './attendanceRoutes.js';
 import recruiterRoutes from './recruiterRoutes.js';
 import notificationRoutes from './notificationRoutes.js';
 import aiRoutes from './aiRoutes.js';
+import trainerApplicationRoutes from './trainerApplicationRoutes.js';
 import supabase from '../config/supabaseClient.js';
 import { normalizeAvatarUrl } from '../utils/storageService.js';
 
@@ -520,5 +521,11 @@ router.use('/notifications', notificationRoutes);
  * /api/ai/*
  */
 router.use('/ai', aiRoutes);
+
+/**
+ * Trainer Application & Verification routes
+ * /api/trainer-application/*
+ */
+router.use('/trainer-application', trainerApplicationRoutes);
 
 export default router;

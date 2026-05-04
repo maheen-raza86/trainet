@@ -13,12 +13,12 @@ import {
   UsersIcon,
   BriefcaseIcon,
   ChartBarIcon,
-  Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   SparklesIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import BrandLogo from '@/components/BrandLogo';
 
@@ -52,6 +52,7 @@ export default function Sidebar({ role }: SidebarProps) {
       { name: 'My Courses', href: '/trainer/courses', icon: AcademicCapIcon },
       { name: 'My Students', href: '/trainer/students', icon: UsersIcon },
       { name: 'Work & Practice', href: '/trainer/work-practice', icon: ClipboardDocumentListIcon },
+      { name: 'Verification', href: '/trainer/apply', icon: ShieldCheckIcon },
       { name: 'Profile', href: '/trainer/profile', icon: UserIcon },
     ],
     alumni: [
@@ -70,7 +71,7 @@ export default function Sidebar({ role }: SidebarProps) {
       { name: 'Dashboard', href: '/admin/dashboard', icon: HomeIcon },
       { name: 'Users', href: '/admin/users', icon: UsersIcon },
       { name: 'Analytics', href: '/admin/analytics', icon: ChartBarIcon },
-      { name: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
+      { name: 'Trainers', href: '/admin/trainers', icon: ShieldCheckIcon },
       { name: 'Profile', href: '/admin/profile', icon: UserIcon },
     ],
   };

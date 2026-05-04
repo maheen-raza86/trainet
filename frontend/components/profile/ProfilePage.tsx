@@ -91,14 +91,19 @@ export default function ProfilePage() {
     setShowAvatarMenu(false);
   };
 
-  // Send JSON — no file involved, FormData is not needed and causes multer parsing issues
+  // Send via PUT /users/profile — that route has no multer middleware,
+  // so the JSON body { avatar_url: null, profile_picture_url: null } arrives intact.
+  // The PATCH route runs multer which resets req.body for non-multipart requests.
   const handleRemoveAvatar = async () => {
     setShowAvatarMenu(false);
     try {
       setRemovingAvatar(true);
       setMsg(null);
 
-      await apiClient.patch('/users/profile', { removeAvatar: true });
+      await apiClient.put('/users/profile', {
+        avatar_url: null,
+        profile_picture_url: null,
+      });
 
       // Update local state immediately
       setProfile(prev => prev ? { ...prev, profile_picture_url: null, avatar_url: null } : prev);

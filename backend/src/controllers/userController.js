@@ -74,7 +74,7 @@ export const getUserProfile = async (req, res, next) => {
 export const updateProfile = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { firstName, lastName, bio, skills, avatar_url } = req.body;
+    const { firstName, lastName, bio, skills, avatar_url, profile_picture_url } = req.body;
 
     if (req.body.role) {
       return res.status(403).json({
@@ -85,7 +85,7 @@ export const updateProfile = async (req, res, next) => {
     }
 
     const updatedProfile = await userService.updateUserProfile(userId, {
-      firstName, lastName, bio, skills, avatar_url,
+      firstName, lastName, bio, skills, avatar_url, profile_picture_url,
     });
 
     res.status(200).json({

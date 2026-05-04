@@ -56,6 +56,8 @@ export const verifyToken = async (req, res, next) => {
       firstName: profileData.first_name,
       lastName: profileData.last_name,
       role: profileData.role,
+      // trainer_status: null means legacy/existing trainer → treat as approved
+      trainerStatus: profileData.trainer_status ?? (profileData.role === 'trainer' ? 'approved' : null),
     };
 
     next();

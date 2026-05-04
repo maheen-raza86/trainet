@@ -7,20 +7,21 @@ import express from 'express';
 import * as courseOfferingController from '../controllers/courseOfferingController.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
 import { authorizeRoles } from '../middleware/roleMiddleware.js';
+import { requireApprovedTrainer } from '../middleware/trainerMiddleware.js';
 
 const router = express.Router();
 
 /**
  * Create course offering
  * POST /api/course-offerings
- * Protected route - requires trainer role
+ * Protected route - requires trainer role + approved status
  */
-router.post('/', verifyToken, authorizeRoles('trainer'), courseOfferingController.createCourseOffering);
+router.post('/', verifyToken, authorizeRoles('trainer'), requireApprovedTrainer, courseOfferingController.createCourseOffering);
 
 /**
  * Get trainer's course offerings
  * GET /api/course-offerings/trainer
- * Protected route - requires trainer role
+ * Protected route - requires trainer role (read is allowed regardless of status)
  */
 router.get('/trainer', verifyToken, authorizeRoles('trainer'), courseOfferingController.getTrainerOfferings);
 
@@ -34,9 +35,9 @@ router.get('/available', courseOfferingController.getAvailableOfferings);
 /**
  * Update course offering
  * PUT /api/course-offerings/:id
- * Protected route - requires trainer role
+ * Protected route - requires trainer role + approved status
  */
-router.put('/:id', verifyToken, authorizeRoles('trainer'), courseOfferingController.updateCourseOffering);
+router.put('/:id', verifyToken, authorizeRoles('trainer'), requireApprovedTrainer, courseOfferingController.updateCourseOffering);
 
 /**
  * Enroll in course offering
