@@ -71,7 +71,7 @@ export default function Sidebar({ role }: SidebarProps) {
       { name: 'Dashboard', href: '/admin/dashboard', icon: HomeIcon },
       { name: 'Users', href: '/admin/users', icon: UsersIcon },
       { name: 'Analytics', href: '/admin/analytics', icon: ChartBarIcon },
-      { name: 'Trainers', href: '/admin/trainers', icon: ShieldCheckIcon },
+      { name: 'Trainer Requests', href: '/admin/trainers', icon: ShieldCheckIcon },
       { name: 'Profile', href: '/admin/profile', icon: UserIcon },
     ],
   };

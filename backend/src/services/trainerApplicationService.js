@@ -96,34 +96,46 @@ export const getMyApplication = async (trainerId) => {
 
 /**
  * Admin: list all trainer applications with trainer profile info.
+ * Uses two separate queries instead of a join to avoid PostgREST schema cache issues.
  * Optionally filter by status.
  */
 export const listApplications = async (statusFilter = null) => {
-  let query = supabaseAdminClient
+  // Query 1: all applications
+  const { data: applications, error: appsErr } = await supabaseAdminClient
     .from('trainer_applications')
-    .select(`
-      *,
-      profiles!trainer_applications_trainer_id_fkey (
-        id, first_name, last_name, email, trainer_status, created_at
-      )
-    `)
+    .select('id, trainer_id, experience, skills, bio, cv_url, submitted_at, reviewed_at, admin_notes')
     .order('submitted_at', { ascending: false });
 
-  if (statusFilter) {
-    // Filter by the trainer's current status in profiles
-    query = query.eq('profiles.trainer_status', statusFilter);
-  }
-
-  const { data, error } = await query;
-  if (error) {
-    logger.error('Error listing trainer applications:', error);
+  if (appsErr) {
+    logger.error('Error listing trainer applications:', appsErr);
     throw new BadRequestError('Failed to fetch applications');
   }
 
-  // If statusFilter is provided, filter in JS (Supabase join filters can be unreliable)
-  let result = data || [];
+  const appList = applications || [];
+  if (appList.length === 0) return [];
+
+  // Query 2: profiles for those trainers
+  const trainerIds = [...new Set(appList.map(a => a.trainer_id))];
+  const { data: profiles, error: profilesErr } = await supabaseAdminClient
+    .from('profiles')
+    .select('id, first_name, last_name, email, trainer_status, created_at')
+    .in('id', trainerIds);
+
+  const profilesById = {};
+  if (!profilesErr && profiles) {
+    for (const p of profiles) {
+      profilesById[p.id] = p;
+    }
+  }
+
+  // Merge and optionally filter by status
+  let result = appList.map(app => ({
+    ...app,
+    profiles: profilesById[app.trainer_id] || null,
+  }));
+
   if (statusFilter) {
-    result = result.filter(a => a.profiles?.trainer_status === statusFilter);
+    result = result.filter(a => (a.profiles?.trainer_status ?? 'approved') === statusFilter);
   }
 
   return result;
@@ -171,28 +183,48 @@ export const reviewApplication = async (trainerId, adminId, decision, adminNotes
 
 /**
  * Admin: get all trainers (with or without applications) and their status.
+ * Uses two separate queries instead of a join to avoid PostgREST schema cache issues
+ * after migrations add new tables/columns.
  */
 export const listAllTrainers = async () => {
-  const { data, error } = await supabaseAdminClient
+  // Query 1: all trainer profiles
+  const { data: profiles, error: profilesErr } = await supabaseAdminClient
     .from('profiles')
-    .select(`
-      id, first_name, last_name, email, trainer_status, created_at,
-      trainer_applications (
-        id, experience, skills, bio, cv_url, submitted_at, reviewed_at, admin_notes
-      )
-    `)
+    .select('id, first_name, last_name, email, trainer_status, created_at')
     .eq('role', 'trainer')
     .order('created_at', { ascending: false });
 
-  if (error) {
-    logger.error('Error listing trainers:', error);
+  if (profilesErr) {
+    logger.error('Error listing trainer profiles:', profilesErr);
     throw new BadRequestError('Failed to fetch trainers');
   }
 
-  // Normalize: null trainer_status = legacy approved
-  return (data || []).map(t => ({
+  const trainerList = profiles || [];
+  if (trainerList.length === 0) {
+    return [];
+  }
+
+  // Query 2: all applications for those trainers (separate query — no join)
+  const trainerIds = trainerList.map(t => t.id);
+  const { data: applications, error: appsErr } = await supabaseAdminClient
+    .from('trainer_applications')
+    .select('id, trainer_id, experience, skills, bio, cv_url, submitted_at, reviewed_at, admin_notes')
+    .in('trainer_id', trainerIds);
+
+  // If trainer_applications table doesn't exist yet, continue without application data
+  const appsByTrainerId = {};
+  if (!appsErr && applications) {
+    for (const app of applications) {
+      appsByTrainerId[app.trainer_id] = app;
+    }
+  } else if (appsErr) {
+    logger.warn('Could not fetch trainer_applications (table may not exist yet):', appsErr.message);
+  }
+
+  // Merge: normalize null trainer_status = legacy approved
+  return trainerList.map(t => ({
     ...t,
     trainer_status: t.trainer_status ?? 'approved',
-    application: t.trainer_applications?.[0] || null,
+    application: appsByTrainerId[t.id] || null,
   }));
 };

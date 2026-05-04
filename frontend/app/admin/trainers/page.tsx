@@ -62,10 +62,11 @@ export default function AdminTrainersPage() {
   const fetchTrainers = async () => {
     try {
       setLoading(true);
+      setError(null);
       const res: any = await apiClient.get('/admin/trainers');
       setTrainers(res.data?.trainers || []);
     } catch (err: any) {
-      setError(err.message || 'Failed to load trainers');
+      setError(err.message || 'Failed to load trainer requests');
     } finally {
       setLoading(false);
     }
@@ -105,7 +106,7 @@ export default function AdminTrainersPage() {
   };
 
   return (
-    <DashboardLayout title="Trainer Verification" subtitle="Review and approve trainer applications">
+    <DashboardLayout title="Trainer Requests" subtitle="Review and approve trainer verification applications">
       <div className="space-y-6">
 
         {/* Action message */}
@@ -150,7 +151,7 @@ export default function AdminTrainersPage() {
         {/* Table */}
         <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/30 overflow-hidden">
           <div className="p-4 border-b border-white/20">
-            <h2 className="font-semibold text-gray-800">Trainers ({filtered.length})</h2>
+            <h2 className="font-semibold text-gray-800">Trainer Requests ({filtered.length})</h2>
           </div>
 
           {loading ? (
@@ -218,7 +219,7 @@ export default function AdminTrainersPage() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-gray-800">Review Trainer</h2>
+              <h2 className="text-lg font-bold text-gray-800">Review Trainer Request</h2>
               <p className="text-sm text-gray-500 mt-0.5">
                 {selected.first_name} {selected.last_name} · {selected.email}
               </p>
