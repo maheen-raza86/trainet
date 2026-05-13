@@ -50,3 +50,23 @@ Thumbs.db
 # Coverage
 coverage/
 .nyc_output/
+
+# Kiro IDE metadata
+.kiro/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Next.js
+out/
+
+# Vercel
+.vercel
+
+# Backend ad-hoc debug scripts (not part of runtime)
+backend/test-*.js
+backend/check-*.js
+backend/create-*.js
+backend/demo-*.js
+backend/run-migration.js
+backend/test-*.sh

@@ -56,7 +56,7 @@ export const getDashboardStats = async () => {
     supabase.from('profiles').select('id, role, created_at'),
     supabase.from('courses').select('id'),
     supabase.from('course_offerings').select('id, status'),
-    supabase.from('enrollments').select('id, created_at'),
+    supabase.from('enrollments').select('id, enrolled_at'),
     supabase.from('assignments').select('id'),
     supabase.from('submissions').select('id, final_score, ai_score, status, submitted_at'),
     supabase.from('certificates').select('id, status, issue_date'),
@@ -120,7 +120,7 @@ export const getDashboardStats = async () => {
   };
 
   const userGrowthChart = buildWeeklyBuckets(profiles, 'created_at');
-  const courseActivityChart = buildWeeklyBuckets(enrollments, 'created_at');
+  const courseActivityChart = buildWeeklyBuckets(enrollments, 'enrolled_at');
 
   return {
     users: {
