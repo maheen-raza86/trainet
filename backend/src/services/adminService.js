@@ -99,11 +99,12 @@ export const getDashboardStats = async () => {
   const revokedCerts = certificates.filter(c => c.status === 'revoked').length;
   const verificationCount = certLogs.filter(l => l.event_type === 'verified').length;
 
-  // ── Chart data: last 8 weeks ──────────────────────────────────────────
+  // ── Chart data: last 52 weeks (1 year) to capture all historical data ──
   const buildWeeklyBuckets = (items, dateField) => {
     const buckets = [];
     const now = new Date();
-    for (let i = 7; i >= 0; i--) {
+    // Use 12 weekly buckets covering the last 12 weeks
+    for (let i = 11; i >= 0; i--) {
       const weekStart = new Date(now);
       weekStart.setDate(now.getDate() - i * 7);
       weekStart.setHours(0, 0, 0, 0);
@@ -111,16 +112,44 @@ export const getDashboardStats = async () => {
       weekEnd.setDate(weekStart.getDate() + 7);
       const label = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const count = items.filter(item => {
-        const d = new Date(item[dateField]);
-        return d >= weekStart && d < weekEnd;
+        const val = item[dateField];
+        if (!val) return false;
+        const d = new Date(val);
+        return !isNaN(d.getTime()) && d >= weekStart && d < weekEnd;
       }).length;
       buckets.push({ label, count });
     }
     return buckets;
   };
 
-  const userGrowthChart = buildWeeklyBuckets(profiles, 'created_at');
-  const courseActivityChart = buildWeeklyBuckets(enrollments, 'enrolled_at');
+  // If all data falls outside the 12-week window, build monthly buckets over 12 months instead
+  const buildMonthlyBuckets = (items, dateField) => {
+    const buckets = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      const label = monthStart.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      const count = items.filter(item => {
+        const val = item[dateField];
+        if (!val) return false;
+        const d = new Date(val);
+        return !isNaN(d.getTime()) && d >= monthStart && d < monthEnd;
+      }).length;
+      buckets.push({ label, count });
+    }
+    return buckets;
+  };
+
+  // Use weekly buckets; fall back to monthly if all weekly counts are 0
+  const makeChart = (items, dateField) => {
+    const weekly = buildWeeklyBuckets(items, dateField);
+    if (weekly.some(b => b.count > 0)) return weekly;
+    return buildMonthlyBuckets(items, dateField);
+  };
+
+  const userGrowthChart = makeChart(profiles, 'created_at');
+  const courseActivityChart = makeChart(enrollments, 'enrolled_at');
 
   return {
     users: {
@@ -757,11 +786,11 @@ export const getAnalyticsData = async () => {
   const pending = totalSubs - flagged - suspicious - clean;
   const flaggedPct = totalSubs > 0 ? Math.round((flagged / totalSubs) * 100) : 0;
 
-  // ── Section 6: Weekly buckets ──────────────────────────────────────────
+  // ── Section 6: Weekly/Monthly buckets ────────────────────────────────
   const buildWeeklyBuckets = (items, dateField) => {
     const buckets = [];
     const now = new Date();
-    for (let i = 7; i >= 0; i--) {
+    for (let i = 11; i >= 0; i--) {
       const weekStart = new Date(now);
       weekStart.setDate(now.getDate() - i * 7);
       weekStart.setHours(0, 0, 0, 0);
@@ -769,12 +798,38 @@ export const getAnalyticsData = async () => {
       weekEnd.setDate(weekStart.getDate() + 7);
       const label = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const count = items.filter(item => {
-        const d = new Date(item[dateField]);
-        return d >= weekStart && d < weekEnd;
+        const val = item[dateField];
+        if (!val) return false;
+        const d = new Date(val);
+        return !isNaN(d.getTime()) && d >= weekStart && d < weekEnd;
       }).length;
       buckets.push({ label, count });
     }
     return buckets;
+  };
+
+  const buildMonthlyBuckets = (items, dateField) => {
+    const buckets = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      const label = monthStart.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      const count = items.filter(item => {
+        const val = item[dateField];
+        if (!val) return false;
+        const d = new Date(val);
+        return !isNaN(d.getTime()) && d >= monthStart && d < monthEnd;
+      }).length;
+      buckets.push({ label, count });
+    }
+    return buckets;
+  };
+
+  const makeChart = (items, dateField) => {
+    const weekly = buildWeeklyBuckets(items, dateField);
+    if (weekly.some(b => b.count > 0)) return weekly;
+    return buildMonthlyBuckets(items, dateField);
   };
 
   return {
@@ -806,9 +861,9 @@ export const getAnalyticsData = async () => {
       flaggedPct,
     },
     charts: {
-      userGrowth: buildWeeklyBuckets(profiles, 'created_at'),
-      enrollmentTrends: buildWeeklyBuckets(enrollments, 'enrolled_at'),
-      submissionTrends: buildWeeklyBuckets(submissions, 'submitted_at'),
+      userGrowth: makeChart(profiles, 'created_at'),
+      enrollmentTrends: makeChart(enrollments, 'enrolled_at'),
+      submissionTrends: makeChart(submissions, 'submitted_at'),
     },
   };
 };

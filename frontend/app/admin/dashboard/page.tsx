@@ -179,7 +179,7 @@ export default function AdminDashboard() {
         {/* Charts row */}
         {stats?.charts && (
           <div className="grid lg:grid-cols-2 gap-6">
-            {stats.charts.userGrowth && stats.charts.userGrowth.length > 0 ? (
+            {stats.charts.userGrowth && stats.charts.userGrowth.some(b => b.count > 0) ? (
               <BarChart
                 data={stats.charts.userGrowth}
                 title="User Growth"
@@ -188,10 +188,10 @@ export default function AdminDashboard() {
               />
             ) : (
               <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/30 p-6 flex items-center justify-center h-48">
-                <p className="text-gray-400 text-sm">No data available yet</p>
+                <p className="text-gray-400 text-sm">No user growth data available yet</p>
               </div>
             )}
-            {stats.charts.courseActivity && stats.charts.courseActivity.length > 0 ? (
+            {stats.charts.courseActivity && stats.charts.courseActivity.some(b => b.count > 0) ? (
               <BarChart
                 data={stats.charts.courseActivity}
                 title="Course Activity"
@@ -200,7 +200,7 @@ export default function AdminDashboard() {
               />
             ) : (
               <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/30 p-6 flex items-center justify-center h-48">
-                <p className="text-gray-400 text-sm">No data available yet</p>
+                <p className="text-gray-400 text-sm">No enrollment data available yet</p>
               </div>
             )}
           </div>
