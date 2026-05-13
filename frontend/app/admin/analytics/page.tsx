@@ -59,21 +59,30 @@ const ROLE_COLORS: Record<string, string> = {
   recruiter: 'bg-orange-500',
 };
 
+const MINI_CHART_HEIGHT_PX = 64; // matches h-16
+
 function MiniBarChart({ data, color }: { data: ChartBucket[]; color: string }) {
   const max = Math.max(...data.map(d => d.count), 1);
   return (
-    <div className="flex items-end space-x-1 h-16">
-      {data.map((b, i) => (
-        <div key={i} className="flex-1 flex flex-col items-center group relative">
-          <span className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-10">
-            {b.count}
-          </span>
+    <div className="flex items-end gap-0.5" style={{ height: `${MINI_CHART_HEIGHT_PX}px` }}>
+      {data.map((b, i) => {
+        const barHeight = Math.max(Math.round((b.count / max) * MINI_CHART_HEIGHT_PX), 2);
+        return (
           <div
-            className={`w-full rounded-t-sm ${color}`}
-            style={{ height: `${Math.max((b.count / max) * 100, 3)}%` }}
-          />
-        </div>
-      ))}
+            key={i}
+            className="relative flex-1 group flex items-end"
+            style={{ height: `${MINI_CHART_HEIGHT_PX}px` }}
+          >
+            <span className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-10 pointer-events-none">
+              {b.count}
+            </span>
+            <div
+              className={`w-full rounded-t-sm ${color}`}
+              style={{ height: `${barHeight}px` }}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -34,7 +34,9 @@ const ROLE_COLORS: Record<string, string> = {
   recruiter: 'bg-orange-100 text-orange-700',
 };
 
-// ── Pure-CSS bar chart — no external library ──────────────────────────────
+// ── Pure-CSS bar chart — bars use absolute pixel heights ─────────────────
+const CHART_HEIGHT_PX = 144; // matches h-36
+
 function BarChart({ data, title, color, yLabel }: {
   data: ChartBucket[];
   title: string;
@@ -45,48 +47,47 @@ function BarChart({ data, title, color, yLabel }: {
 
   return (
     <div className="bg-white/60 backdrop-blur-sm rounded-2xl border border-white/30 p-6">
-      {/* Title + axis label */}
       <div className="flex items-center justify-between mb-1">
         <h2 className="font-bold text-gray-800">{title}</h2>
         <span className="text-xs text-gray-400">{yLabel}</span>
       </div>
-      <p className="text-xs text-gray-400 mb-4">Last 8 weeks</p>
+      <p className="text-xs text-gray-400 mb-4">Last 12 weeks / months</p>
 
-      {/* Chart area */}
-      <div className="flex items-end space-x-1.5 h-36">
+      {/* Chart area — fixed pixel height, bars use absolute px heights */}
+      <div className="flex items-end gap-1" style={{ height: `${CHART_HEIGHT_PX}px` }}>
         {data.map((bucket, i) => {
-          const pct = max > 0 ? (bucket.count / max) * 100 : 0;
+          const barHeight = Math.max(Math.round((bucket.count / max) * CHART_HEIGHT_PX), 3);
           return (
-            <div key={i} className="flex-1 flex flex-col items-center group">
-              {/* Tooltip */}
-              <div className="relative">
-                <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-10">
-                  {bucket.count}
-                </span>
-              </div>
-              {/* Bar */}
+            <div
+              key={i}
+              className="relative flex-1 group flex items-end"
+              style={{ height: `${CHART_HEIGHT_PX}px` }}
+            >
+              {/* Hover tooltip */}
+              <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-10 pointer-events-none">
+                {bucket.count}
+              </span>
+              {/* Bar — grows from bottom */}
               <div
                 className={`w-full rounded-t-md transition-all duration-500 ${color}`}
-                style={{ height: `${Math.max(pct, 2)}%` }}
+                style={{ height: `${barHeight}px` }}
               />
             </div>
           );
         })}
       </div>
 
-      {/* X-axis labels — show every other label to avoid crowding */}
-      <div className="flex space-x-1.5 mt-2">
+      {/* X-axis labels */}
+      <div className="flex gap-1 mt-2">
         {data.map((bucket, i) => (
-          <div key={i} className="flex-1 text-center">
+          <div key={i} className="flex-1 text-center overflow-hidden">
             {i % 2 === 0 && (
-              <span className="text-xs text-gray-400 leading-none">{bucket.label}</span>
+              <span className="text-xs text-gray-400 leading-none truncate block">{bucket.label}</span>
             )}
           </div>
         ))}
       </div>
-
-      {/* X-axis title */}
-      <p className="text-xs text-gray-400 text-center mt-1">Week starting</p>
+      <p className="text-xs text-gray-400 text-center mt-1">Period starting</p>
     </div>
   );
 }
