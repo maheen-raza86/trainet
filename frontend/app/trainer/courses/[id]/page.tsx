@@ -388,6 +388,7 @@ export default function TrainerCourseManage() {
   const [showAssignForm, setShowAssignForm] = useState(false);
   const [assignTitle, setAssignTitle] = useState('');
   const [assignDesc, setAssignDesc] = useState('');
+  const [assignStart, setAssignStart] = useState('');
   const [assignDue, setAssignDue] = useState('');
   const [assignSaving, setAssignSaving] = useState(false);
 
@@ -558,6 +559,13 @@ export default function TrainerCourseManage() {
   const handleCreateAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assignTitle.trim() || !assignDesc.trim()) return;
+
+    // Client-side scheduling validation
+    if (assignStart && assignDue && new Date(assignStart) >= new Date(assignDue)) {
+      alert('Start time must be before the due date');
+      return;
+    }
+
     try {
       setAssignSaving(true);
       await apiClient.post('/assignments', {
@@ -565,8 +573,9 @@ export default function TrainerCourseManage() {
         description: assignDesc,
         courseOfferingId: offeringId,
         dueDate: assignDue || undefined,
+        startTime: assignStart ? new Date(assignStart).toISOString() : undefined,
       });
-      setAssignTitle(''); setAssignDesc(''); setAssignDue(''); setShowAssignForm(false);
+      setAssignTitle(''); setAssignDesc(''); setAssignStart(''); setAssignDue(''); setShowAssignForm(false);
       fetchAll();
     } catch (err: any) {
       alert(err.message || 'Failed to create assignment');
@@ -801,6 +810,14 @@ export default function TrainerCourseManage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Instructions *</label>
                   <textarea value={assignDesc} onChange={e => setAssignDesc(e.target.value)} required rows={3}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-400 resize-none" placeholder="Describe the assignment requirements..." />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Start Time <span className="text-gray-400 font-normal">(optional — leave blank to publish immediately)</span>
+                  </label>
+                  <input type="datetime-local" value={assignStart} onChange={e => setAssignStart(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-400" />
+                  <p className="text-xs text-gray-400 mt-1">Students cannot see or access this assignment before this time.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
