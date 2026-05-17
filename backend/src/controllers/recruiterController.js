@@ -7,9 +7,35 @@ import { BadRequestError } from '../utils/errors.js';
 
 export const searchCandidates = async (req, res, next) => {
   try {
-    const { skills, min_score, project_type } = req.query;
-    const candidates = await recruiterService.searchCandidates({ skills, minScore: min_score, projectType: project_type });
-    res.status(200).json({ success: true, message: 'Candidates retrieved', data: { candidates, count: candidates.length } });
+    const {
+      skills,
+      min_score,
+      project_type,
+      cert_date_range,
+      course_title,
+      category,
+      min_cert_count,
+      min_wp_count,
+      completed_course,
+    } = req.query;
+
+    const candidates = await recruiterService.searchCandidates({
+      skills,
+      minScore: min_score,
+      projectType: project_type,
+      certDateRange: cert_date_range,
+      courseTitle: course_title,
+      category,
+      minCertCount: min_cert_count,
+      minWpCount: min_wp_count,
+      completedCourse: completed_course,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Candidates retrieved',
+      data: { candidates, count: candidates.length },
+    });
   } catch (err) { next(err); }
 };
 

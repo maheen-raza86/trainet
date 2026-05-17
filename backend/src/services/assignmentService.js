@@ -19,7 +19,7 @@ import { createNotification } from './notificationService.js';
  * @returns {Promise<Object>} Created assignment
  */
 export const createAssignment = async (assignmentData) => {
-  const { title, description, courseOfferingId, trainerId, dueDate, fileUrl, fileName, fileSize } = assignmentData;
+  const { title, description, courseOfferingId, trainerId, dueDate, startTime, fileUrl, fileName, fileSize } = assignmentData;
 
   try {
     // Verify course offering exists and trainer owns it
@@ -37,6 +37,11 @@ export const createAssignment = async (assignmentData) => {
       throw new UnauthorizedError('You can only create assignments for your own course offerings');
     }
 
+    // Validate scheduling: start_time must be before due_date when both are provided
+    if (startTime && dueDate && new Date(startTime) >= new Date(dueDate)) {
+      throw new BadRequestError('Start time must be before the due date');
+    }
+
     // Create assignment
     const insertData = {
       course_offering_id: courseOfferingId,
@@ -45,6 +50,9 @@ export const createAssignment = async (assignmentData) => {
       description,
       due_date: dueDate,
     };
+
+    // start_time is optional — null means immediately visible
+    if (startTime) insertData.start_time = startTime;
 
     if (fileUrl) insertData.file_url = fileUrl;
     if (fileName) insertData.file_name = fileName;
@@ -91,27 +99,43 @@ export const createAssignment = async (assignmentData) => {
 /**
  * Get assignments for a course or course offering
  * @param {string} courseId - Course ID or Course Offering ID
+ * @param {Object} options - Options
+ * @param {boolean} options.studentView - When true, hide assignments not yet started
  * @returns {Promise<Array>} List of assignments
  */
-export const getAssignmentsByCourse = async (courseId) => {
+export const getAssignmentsByCourse = async (courseId, options = {}) => {
   try {
+    const now = new Date().toISOString();
+
     // Try to fetch by course_offering_id first (new structure)
-    const { data: offeringAssignments, error: offeringError } = await supabase
+    let query = supabase
       .from('assignments')
       .select('*')
       .eq('course_offering_id', courseId)
       .order('due_date', { ascending: true });
+
+    if (options.studentView) {
+      query = query.or(`start_time.is.null,start_time.lte.${now}`);
+    }
+
+    const { data: offeringAssignments, error: offeringError } = await query;
 
     if (!offeringError && offeringAssignments && offeringAssignments.length > 0) {
       return offeringAssignments;
     }
 
     // Fallback to course_id for backward compatibility
-    const { data, error } = await supabase
+    let fallbackQuery = supabase
       .from('assignments')
       .select('*')
       .eq('course_id', courseId)
       .order('due_date', { ascending: true });
+
+    if (options.studentView) {
+      fallbackQuery = fallbackQuery.or(`start_time.is.null,start_time.lte.${now}`);
+    }
+
+    const { data, error } = await fallbackQuery;
 
     if (error) {
       logger.error('Error fetching assignments:', error);
@@ -139,7 +163,7 @@ export const getAssignmentsByCourse = async (courseId) => {
  * @returns {Promise<Object>} Updated assignment
  */
 export const updateAssignment = async (assignmentId, trainerId, updateData) => {
-  const { title, description, dueDate } = updateData;
+  const { title, description, dueDate, startTime } = updateData;
 
   try {
     // Verify assignment exists
@@ -158,12 +182,21 @@ export const updateAssignment = async (assignmentId, trainerId, updateData) => {
       throw new UnauthorizedError('You are not authorized to edit this assignment');
     }
 
+    // Validate scheduling: start_time must be before due_date
+    const resolvedStartTime = startTime !== undefined ? startTime : assignment.start_time;
+    const resolvedDueDate = dueDate !== undefined ? dueDate : assignment.due_date;
+    if (resolvedStartTime && resolvedDueDate && new Date(resolvedStartTime) >= new Date(resolvedDueDate)) {
+      throw new BadRequestError('Start time must be before the due date');
+    }
+
     // Prepare update object — only columns that exist in the assignments table
     const updateFields = {};
 
     if (title !== undefined) updateFields.title = title;
     if (description !== undefined) updateFields.description = description;
     if (dueDate !== undefined) updateFields.due_date = dueDate;
+    // Allow explicit null to clear start_time (make immediately visible)
+    if (startTime !== undefined) updateFields.start_time = startTime || null;
 
     // Update assignment
     const { data: updatedAssignment, error: updateError } = await supabase
@@ -197,15 +230,25 @@ export const updateAssignment = async (assignmentId, trainerId, updateData) => {
 /**
  * Get assignments for a course offering
  * @param {string} offeringId - Course Offering ID
+ * @param {Object} options - Options
+ * @param {boolean} options.studentView - When true, hide assignments not yet started
  * @returns {Promise<Array>} List of assignments
  */
-export const getAssignmentsByOffering = async (offeringId) => {
+export const getAssignmentsByOffering = async (offeringId, options = {}) => {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('assignments')
       .select('*')
       .eq('course_offering_id', offeringId)
       .order('due_date', { ascending: true });
+
+    // Student view: only return assignments whose start_time has passed (or is null)
+    if (options.studentView) {
+      const now = new Date().toISOString();
+      query = query.or(`start_time.is.null,start_time.lte.${now}`);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       logger.error('Error fetching assignments by offering:', error);

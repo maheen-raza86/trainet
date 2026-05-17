@@ -55,6 +55,7 @@ interface Assignment {
   id: string;
   title: string;
   description: string;
+  start_time: string | null;
   due_date: string;
   course_offering_id: string;
 }
@@ -820,13 +821,25 @@ export default function TrainerCourseManage() {
             )}
 
             {assignments.length > 0 ? (
-              assignments.map((a) => (
+              assignments.map((a) => {
+                const isScheduled = !!(a.start_time && new Date(a.start_time) > new Date());
+                return (
                 <div key={a.id} className="bg-white/60 backdrop-blur-sm rounded-xl p-5 border border-white/30">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="font-semibold text-gray-800">{a.title}</h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-gray-800">{a.title}</h3>
+                        {isScheduled && (
+                          <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full font-medium">⏰ Scheduled</span>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-600 mt-1">{a.description}</p>
-                      <p className="text-xs text-gray-500 mt-2">
+                      {a.start_time && (
+                        <p className="text-xs text-amber-600 mt-1">
+                          🕐 Opens: {new Date(a.start_time).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
                         Due: {new Date(a.due_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
@@ -849,7 +862,8 @@ export default function TrainerCourseManage() {
                     </div>
                   </div>
                 </div>
-              ))
+                );
+              })
             ) : (
               <div className="bg-white/60 backdrop-blur-sm rounded-xl p-10 text-center border border-white/30">
                 <DocumentTextIcon className="w-10 h-10 text-gray-300 mx-auto mb-2" />

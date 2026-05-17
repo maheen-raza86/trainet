@@ -15,7 +15,7 @@ import {
 
 /* ── Types ── */
 interface Material { id:string; title:string; description:string|null; material_type:string; file_url:string|null; external_url:string|null; file_name:string|null; }
-interface Assignment { id:string; title:string; description:string; due_date:string; course_offering_id:string; }
+interface Assignment { id:string; title:string; description:string; start_time:string|null; due_date:string; course_offering_id:string; }
 interface Submission { id:string; assignment_id:string; status:string; grade:number|null; feedback:string|null; ai_score:number|null; ai_feedback:string|null; plagiarism_score:number|null; plagiarism_status:string|null; final_score:number|null; trainer_feedback:string|null; missing_concepts:string|null; plagiarism_percentage:number|null; ai_status:string|null; trainer_override:boolean; }
 interface OfferingDetail {
   id:string; duration_weeks:number; hours_per_week:number; outline:string; status:string;
@@ -396,7 +396,8 @@ export default function StudentCourseDetail() {
                   {weekAssignments.map(assignment=>{
                     const submission=getSubmission(assignment.id);
                     const past=isPastDeadline(assignment.due_date);
-                    const canSubmit=!isCourseEnded&&!submission&&!past;
+                    const notYetOpen=!!(assignment.start_time && new Date() < new Date(assignment.start_time));
+                    const canSubmit=!isCourseEnded&&!submission&&!past&&!notYetOpen;
                     return (
                       <div key={assignment.id} className="bg-white/60 backdrop-blur-sm rounded-xl p-5 border border-white/30">
                         <div className="flex items-start justify-between">
@@ -407,14 +408,19 @@ export default function StudentCourseDetail() {
                                 ?<span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">Graded</span>
                                 :submission?<span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">Submitted</span>
                                 :past?<span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded-full">Closed</span>
+                                :notYetOpen?<span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full">Not Yet Open</span>
                                 :<span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full">Pending</span>}
                             </div>
                             <p className="text-sm text-gray-600 mb-2">{assignment.description}</p>
+                            {assignment.start_time&&notYetOpen&&(
+                              <p className="text-xs text-amber-600 flex items-center mb-1"><ClockIcon className="w-3 h-3 mr-1"/>Opens: {new Date(assignment.start_time).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</p>
+                            )}
                             <p className="text-xs text-gray-500 flex items-center"><ClockIcon className="w-3 h-3 mr-1"/>Due: {new Date(assignment.due_date).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})}</p>
                             {submission?.grade!==null&&submission?.grade!==undefined&&<p className="text-sm text-green-600 font-medium mt-1">Score: {submission.grade}/100</p>}
                           </div>
                           <div className="ml-4 flex flex-col space-y-2">
                             {canSubmit&&<button onClick={()=>{setSelectedAssignment(assignment);setIsSubmitModalOpen(true);}} className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg text-sm hover:from-purple-600 hover:to-blue-600 transition">Submit</button>}
+                            {!submission&&notYetOpen&&<p className="text-xs text-amber-500 font-medium text-right">Not yet available</p>}
                             {submission&&<button onClick={()=>openFeedback(submission)} className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition">View Feedback</button>}
                           </div>
                         </div>

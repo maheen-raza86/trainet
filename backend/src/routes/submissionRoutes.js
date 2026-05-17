@@ -11,12 +11,12 @@ import upload from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
-router.post('/', verifyToken, upload.single('file'), submissionController.submitAssignment);
+router.post('/', verifyToken, authorizeRoles('student'), upload.single('file'), submissionController.submitAssignment);
 router.put('/:id/grade', verifyToken, authorizeRoles('trainer'), submissionController.gradeSubmission);
 router.put('/:id/finalize', verifyToken, authorizeRoles('trainer'), submissionController.finalizeSubmission);
-router.get('/assignment/:assignmentId', verifyToken, submissionController.getSubmissionsByAssignment);
-router.get('/my', verifyToken, submissionController.getMySubmissions);
-router.get('/:id', verifyToken, submissionController.getSubmissionById);
+router.get('/assignment/:assignmentId', verifyToken, authorizeRoles('trainer'), submissionController.getSubmissionsByAssignment);
+router.get('/my', verifyToken, authorizeRoles('student'), submissionController.getMySubmissions);
+router.get('/:id', verifyToken, authorizeRoles('student'), submissionController.getSubmissionById);
 router.post('/:id/evaluate', verifyToken, authorizeRoles('trainer'), submissionController.runAiEvaluation);
 
 export default router;

@@ -11,6 +11,7 @@ interface SubmissionModalProps {
     id: string;
     title: string;
     description: string;
+    start_time?: string | null;
     due_date?: string;
   };
 }
@@ -21,6 +22,8 @@ export default function SubmissionModal({ isOpen, onClose, onSuccess, assignment
   const [error, setError] = useState<string>('');
 
   const isClosed = assignment.due_date ? new Date() > new Date(assignment.due_date) : false;
+  const isNotYetOpen = assignment.start_time ? new Date() < new Date(assignment.start_time) : false;
+  const isBlocked = isClosed || isNotYetOpen;
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -53,9 +56,9 @@ export default function SubmissionModal({ isOpen, onClose, onSuccess, assignment
       return;
     }
 
-    // Defensive check: prevent submission if deadline has passed
-    if (isClosed) {
-      setError('Deadline has passed. Submission not allowed.');
+    // Defensive check: prevent submission if deadline has passed or not yet open
+    if (isBlocked) {
+      setError(isClosed ? 'Deadline has passed. Submission not allowed.' : 'This assignment is not yet open for submissions.');
       return;
     }
 
@@ -123,8 +126,12 @@ export default function SubmissionModal({ isOpen, onClose, onSuccess, assignment
             <div className="flex items-center space-x-3">
               <h2 className="text-xl font-bold text-gray-900">Submit Assignment</h2>
               {assignment.due_date && (
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${isClosed ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                  {isClosed ? 'Closed' : 'Open'}
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  isClosed ? 'bg-red-100 text-red-600'
+                  : isNotYetOpen ? 'bg-amber-100 text-amber-600'
+                  : 'bg-green-100 text-green-600'
+                }`}>
+                  {isClosed ? 'Closed' : isNotYetOpen ? 'Not Yet Open' : 'Open'}
                 </span>
               )}
             </div>
@@ -221,7 +228,7 @@ export default function SubmissionModal({ isOpen, onClose, onSuccess, assignment
             </button>
             <button
               type="submit"
-              disabled={!selectedFile || isSubmitting || isClosed}
+              disabled={!selectedFile || isSubmitting || isBlocked}
               className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
               {isSubmitting ? (
@@ -234,6 +241,8 @@ export default function SubmissionModal({ isOpen, onClose, onSuccess, assignment
                 </span>
               ) : isClosed ? (
                 'Deadline Passed'
+              ) : isNotYetOpen ? (
+                'Not Yet Open'
               ) : (
                 'Submit Assignment'
               )}

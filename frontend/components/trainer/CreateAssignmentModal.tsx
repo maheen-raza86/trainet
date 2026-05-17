@@ -20,6 +20,7 @@ export default function CreateAssignmentModal({ isOpen, onClose, onSuccess }: Cr
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [courseOfferingId, setCourseOfferingId] = useState('');
+  const [startTime, setStartTime] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [courses, setCourses] = useState<CourseOffering[]>([]);
@@ -31,7 +32,7 @@ export default function CreateAssignmentModal({ isOpen, onClose, onSuccess }: Cr
   useEffect(() => {
     if (isOpen) {
       fetchCourses();
-      setTitle(''); setDescription(''); setCourseOfferingId(''); setDueDate(''); setFile(null); setError('');
+      setTitle(''); setDescription(''); setCourseOfferingId(''); setStartTime(''); setDueDate(''); setFile(null); setError('');
     }
   }, [isOpen]);
 
@@ -51,6 +52,11 @@ export default function CreateAssignmentModal({ isOpen, onClose, onSuccess }: Cr
       setError('All fields are required');
       return;
     }
+    // Validate scheduling: start time must be before due date
+    if (startTime && dueDate && new Date(startTime) >= new Date(dueDate)) {
+      setError('Start time must be before the due date');
+      return;
+    }
     try {
       setSubmitting(true);
       setError('');
@@ -60,6 +66,8 @@ export default function CreateAssignmentModal({ isOpen, onClose, onSuccess }: Cr
       formData.append('description', description.trim());
       formData.append('courseOfferingId', courseOfferingId);
       formData.append('dueDate', new Date(dueDate).toISOString());
+      // Only send startTime if provided
+      if (startTime) formData.append('startTime', new Date(startTime).toISOString());
       if (file) formData.append('file', file);
 
       await apiClient.post('/assignments', formData);
@@ -114,6 +122,21 @@ export default function CreateAssignmentModal({ isOpen, onClose, onSuccess }: Cr
             {!loadingCourses && courses.length === 0 && (
               <p className="text-xs text-orange-600 mt-1">No course offerings found. Create one first.</p>
             )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Start Time <span className="text-gray-400">(optional — leave blank to publish immediately)</span>
+            </label>
+            <input
+              type="datetime-local"
+              value={startTime}
+              onChange={e => setStartTime(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-400"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Students cannot see or access this assignment before this time.
+            </p>
           </div>
 
           <div>

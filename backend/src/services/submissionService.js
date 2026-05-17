@@ -117,6 +117,11 @@ export const submitAssignment = async (submissionData) => {
       throw new BadRequestError('Deadline has passed. Submission not allowed.');
     }
 
+    // Start time validation — block submission if assignment hasn't opened yet
+    if (assignment.start_time && new Date() < new Date(assignment.start_time)) {
+      throw new BadRequestError('This assignment is not yet open for submissions.');
+    }
+
     // Verify student is enrolled in the course offering
     const { data: enrollment, error: enrollmentError } = await supabase
       .from('enrollments')

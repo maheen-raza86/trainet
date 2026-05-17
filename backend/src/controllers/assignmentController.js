@@ -5,7 +5,7 @@
 
 import * as assignmentService from '../services/assignmentService.js';
 import logger from '../utils/logger.js';
-import { BadRequestError } from '../utils/errors.js';
+import { BadRequestError, UnauthorizedError } from '../utils/errors.js';
 import { uploadFile } from '../utils/storageService.js';
 
 /**
@@ -17,7 +17,7 @@ import { uploadFile } from '../utils/storageService.js';
  */
 export const createAssignment = async (req, res, next) => {
   try {
-    const { title, description, courseOfferingId, dueDate } = req.body;
+    const { title, description, courseOfferingId, dueDate, startTime } = req.body;
     const trainerId = req.user.id;
     const file = req.file;
 
@@ -31,6 +31,14 @@ export const createAssignment = async (req, res, next) => {
 
     if (req.user.role !== 'trainer') {
       return res.status(403).json({ success: false, message: 'Only trainers can create assignments', error: 'Forbidden' });
+    }
+
+    // Validate startTime format if provided
+    if (startTime) {
+      const d = new Date(startTime);
+      if (isNaN(d.getTime())) {
+        return res.status(400).json({ success: false, message: 'start_time must be a valid ISO 8601 date string', error: 'Validation Error' });
+      }
     }
 
     // Upload file to Supabase Storage if provided
@@ -50,6 +58,7 @@ export const createAssignment = async (req, res, next) => {
       courseOfferingId,
       trainerId,
       dueDate,
+      startTime: startTime || null,
       fileUrl,
       fileName: file ? file.originalname : null,
       fileSize: file ? file.size : null,
@@ -71,12 +80,12 @@ export const createAssignment = async (req, res, next) => {
 export const updateAssignment = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, description, dueDate } = req.body;
+    const { title, description, dueDate, startTime } = req.body;
     const trainerId = req.user.id;
 
     // Validate at least one field is provided
-    if (!title && !description && !dueDate) {
-      throw new BadRequestError('At least one field (title, description, or dueDate) must be provided');
+    if (!title && !description && !dueDate && startTime === undefined) {
+      throw new BadRequestError('At least one field (title, description, dueDate, or startTime) must be provided');
     }
 
     // Validate title length if provided
@@ -97,10 +106,19 @@ export const updateAssignment = async (req, res, next) => {
       }
     }
 
+    // Validate startTime format if provided (null is allowed to clear it)
+    if (startTime !== undefined && startTime !== null) {
+      const d = new Date(startTime);
+      if (isNaN(d.getTime())) {
+        throw new BadRequestError('Start time must be a valid ISO 8601 date string');
+      }
+    }
+
     const updateData = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (dueDate !== undefined) updateData.dueDate = dueDate;
+    if (startTime !== undefined) updateData.startTime = startTime;
 
     const assignment = await assignmentService.updateAssignment(id, trainerId, updateData);
 
@@ -119,9 +137,7 @@ export const updateAssignment = async (req, res, next) => {
 /**
  * Get assignments for a course
  * GET /api/assignments/course/:courseId
- * @param {Object} req - Express request
- * @param {Object} res - Express response
- * @param {Function} next - Next middleware
+ * Students only see assignments whose start_time has passed.
  */
 export const getAssignmentsByCourse = async (req, res, next) => {
   try {
@@ -135,7 +151,8 @@ export const getAssignmentsByCourse = async (req, res, next) => {
       });
     }
 
-    const assignments = await assignmentService.getAssignmentsByCourse(courseId);
+    const studentView = req.user?.role === 'student';
+    const assignments = await assignmentService.getAssignmentsByCourse(courseId, { studentView });
 
     res.status(200).json({
       success: true,
@@ -153,9 +170,8 @@ export const getAssignmentsByCourse = async (req, res, next) => {
 /**
  * Get assignments for a course offering
  * GET /api/assignments/course-offering/:offeringId
- * @param {Object} req - Express request
- * @param {Object} res - Express response
- * @param {Function} next - Next middleware
+ * Students only see assignments whose start_time has passed.
+ * Trainers see all assignments regardless of start_time.
  */
 export const getAssignmentsByOffering = async (req, res, next) => {
   try {
@@ -169,7 +185,9 @@ export const getAssignmentsByOffering = async (req, res, next) => {
       });
     }
 
-    const assignments = await assignmentService.getAssignmentsByOffering(offeringId);
+    // Apply student-view filtering (hide not-yet-started assignments) for students
+    const studentView = req.user?.role === 'student';
+    const assignments = await assignmentService.getAssignmentsByOffering(offeringId, { studentView });
 
     res.status(200).json({
       success: true,

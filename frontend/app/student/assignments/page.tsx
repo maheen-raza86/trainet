@@ -9,6 +9,7 @@ interface Assignment {
   id: string;
   title: string;
   description: string;
+  start_time: string | null;
   due_date: string;
   course_offering_id: string;
   created_at: string;
@@ -264,6 +265,7 @@ export default function StudentAssignments() {
           <div className="space-y-4">
             {filteredAssignments.map((assignment) => {
               const isClosed = assignment.due_date && new Date() > new Date(assignment.due_date);
+              const isNotYetOpen = assignment.start_time && new Date() < new Date(assignment.start_time);
               return (
               <div key={assignment.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <div className="flex items-start justify-between">
@@ -276,10 +278,19 @@ export default function StudentAssignments() {
                     </div>
                     <p className="text-sm text-gray-600 mb-2">{assignment.offeringName}</p>
                     <div className="flex items-center space-x-4 text-sm text-gray-500">
+                      {assignment.start_time && (
+                        <span>🕐 Opens: {formatDate(assignment.start_time)}</span>
+                      )}
                       <span>📅 Due: {formatDate(assignment.due_date)}</span>
                       {assignment.due_date && (
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${isClosed ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                          {isClosed ? 'Closed' : 'Open'}
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          isClosed
+                            ? 'bg-red-100 text-red-600'
+                            : isNotYetOpen
+                            ? 'bg-amber-100 text-amber-600'
+                            : 'bg-green-100 text-green-600'
+                        }`}>
+                          {isClosed ? 'Closed' : isNotYetOpen ? 'Not Yet Open' : 'Open'}
                         </span>
                       )}
                       {assignment.score !== null && (
@@ -293,6 +304,8 @@ export default function StudentAssignments() {
                     {assignment.status === 'pending' && (
                       isClosed ? (
                         <p className="text-sm text-red-500 font-medium">Deadline has passed</p>
+                      ) : isNotYetOpen ? (
+                        <p className="text-sm text-amber-500 font-medium">Not yet available</p>
                       ) : (
                         <button
                           onClick={() => handleSubmitClick(assignment)}

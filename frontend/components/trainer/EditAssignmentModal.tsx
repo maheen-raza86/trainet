@@ -12,6 +12,7 @@ interface EditAssignmentModalProps {
     id: string;
     title: string;
     description: string;
+    start_time: string | null;
     due_date: string;
     course_offering_id: string;
   } | null;
@@ -20,6 +21,7 @@ interface EditAssignmentModalProps {
 interface AssignmentFormData {
   title: string;
   description: string;
+  startTime: string;
   dueDate: string;
 }
 
@@ -53,6 +55,14 @@ export default function EditAssignmentModal({ isOpen, onClose, onSuccess, assign
         setValue('title', assignment.title);
         setValue('description', assignment.description);
 
+        // Format start_time for datetime-local input (empty string if null)
+        if (assignment.start_time) {
+          const startTime = new Date(assignment.start_time);
+          setValue('startTime', startTime.toISOString().slice(0, 16));
+        } else {
+          setValue('startTime', '');
+        }
+
         // Format the due date for datetime-local input
         const dueDate = new Date(assignment.due_date);
         const formattedDate = dueDate.toISOString().slice(0, 16);
@@ -74,10 +84,18 @@ export default function EditAssignmentModal({ isOpen, onClose, onSuccess, assign
   const onSubmit = async (data: AssignmentFormData) => {
     if (!assignment) return;
 
-    const payload = {
+    // Validate scheduling
+    if (data.startTime && data.dueDate && new Date(data.startTime) >= new Date(data.dueDate)) {
+      setError('Start time must be before the due date');
+      return;
+    }
+
+    const payload: Record<string, any> = {
       title: data.title,
       description: data.description,
       dueDate: new Date(data.dueDate).toISOString(),
+      // Send null to clear start_time, or ISO string if set
+      startTime: data.startTime ? new Date(data.startTime).toISOString() : null,
     };
 
     console.log('[EditAssignment] PUT /assignments/' + assignment.id, payload);
@@ -193,6 +211,21 @@ export default function EditAssignmentModal({ isOpen, onClose, onSuccess, assign
             <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600">
               {courseTitle || 'Loading...'}
             </div>
+          </div>
+
+          {/* Start Time */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Start Time <span className="text-gray-400">(optional — leave blank to publish immediately)</span>
+            </label>
+            <input
+              type="datetime-local"
+              {...register('startTime')}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              Students cannot see or access this assignment before this time.
+            </p>
           </div>
 
           {/* Due Date */}

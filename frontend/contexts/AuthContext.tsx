@@ -21,6 +21,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 function clearAuthStorage() {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  // Clear auth cookies used by Next.js middleware for server-side route protection
+  document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
+  document.cookie = 'user=; path=/; max-age=0; SameSite=Lax';
   // NOTE: do NOT remove 'redirect_after_login' here — it must survive the
   // login() call so the post-login redirect useEffect can consume it.
   sessionStorage.clear();
@@ -55,6 +58,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const parsedUser = JSON.parse(storedUser);
         setToken(storedToken);
         setUser(parsedUser);
+        // Re-sync cookies for Next.js middleware (handles users already logged in
+        // before cookie-based protection was introduced)
+        const maxAge = 7 * 24 * 60 * 60;
+        document.cookie = `token=${storedToken}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        document.cookie = `user=${encodeURIComponent(storedUser)}; path=/; max-age=${maxAge}; SameSite=Lax`;
       }
     } catch {
       // Corrupted storage — clear it
@@ -78,6 +86,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userData);
         localStorage.setItem('token', accessToken);
         localStorage.setItem('user', JSON.stringify(userData));
+        // Set cookies for Next.js middleware (server-side route protection)
+        // 7-day expiry; SameSite=Lax is safe for same-origin navigation
+        const maxAge = 7 * 24 * 60 * 60;
+        document.cookie = `token=${accessToken}; path=/; max-age=${maxAge}; SameSite=Lax`;
+        document.cookie = `user=${encodeURIComponent(JSON.stringify(userData))}; path=/; max-age=${maxAge}; SameSite=Lax`;
       } else {
         throw new Error(response.message || 'Login failed');
       }
@@ -115,9 +128,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setUserWithStorage = (userData: User | null) => {
     setUser(userData);
     if (userData) {
-      localStorage.setItem('user', JSON.stringify(userData));
+      const json = JSON.stringify(userData);
+      localStorage.setItem('user', json);
+      // Keep cookie in sync for Next.js middleware
+      const maxAge = 7 * 24 * 60 * 60;
+      document.cookie = `user=${encodeURIComponent(json)}; path=/; max-age=${maxAge}; SameSite=Lax`;
     } else {
       localStorage.removeItem('user');
+      document.cookie = 'user=; path=/; max-age=0; SameSite=Lax';
     }
   };
 

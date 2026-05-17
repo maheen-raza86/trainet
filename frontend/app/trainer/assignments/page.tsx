@@ -18,6 +18,7 @@ interface Assignment {
   id: string;
   title: string;
   description: string;
+  start_time: string | null;
   due_date: string;
   course_offering_id: string;
   created_at: string;
@@ -26,6 +27,7 @@ interface Assignment {
 interface AssignmentWithCourse extends Assignment {
   offeringName: string;
   submissionsCount: number;
+  isScheduled: boolean;  // true when start_time is in the future
 }
 
 export default function TrainerAssignments() {
@@ -73,6 +75,7 @@ export default function TrainerAssignments() {
               ...assignment,
               offeringName: offering.courses.title,
               submissionsCount,
+              isScheduled: !!(assignment.start_time && new Date(assignment.start_time) > new Date()),
             });
           }
         } catch (err) {
@@ -183,10 +186,18 @@ export default function TrainerAssignments() {
                       <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
                         {assignment.submissionsCount} Submissions
                       </span>
+                      {assignment.isScheduled && (
+                        <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                          ⏰ Scheduled
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-600 mb-2">{assignment.offeringName}</p>
                     <p className="text-sm text-gray-500 mb-3">{assignment.description}</p>
                     <div className="flex items-center space-x-4 text-sm text-gray-500">
+                      {assignment.start_time && (
+                        <span>🕐 Opens: {formatDate(assignment.start_time)}</span>
+                      )}
                       <span>📅 Due: {formatDate(assignment.due_date)}</span>
                       <span>📝 Created: {formatDate(assignment.created_at)}</span>
                     </div>

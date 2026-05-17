@@ -38,7 +38,18 @@ const computeScore = (candidate, filters) => {
 
 export const searchCandidates = async (filters = {}) => {
   try {
-    const { skills, minScore, projectType } = filters;
+    const {
+      skills,
+      minScore,
+      projectType,
+      // New advanced filters
+      certDateRange,    // 'this_month' | 'last_2_months' | 'this_year'
+      courseTitle,      // partial match on course title
+      category,         // course category / specialization keyword
+      minCertCount,     // minimum number of certificates
+      minWpCount,       // minimum work-practice submissions
+      completedCourse,  // boolean-like: '1' means must have at least one completed course
+    } = filters;
 
     // Fetch all student profiles visible in talent pool
     const { data: profiles, error: profileError } = await supabase
@@ -55,6 +66,21 @@ export const searchCandidates = async (filters = {}) => {
     const skillsArray = skills
       ? skills.split(',').map(s => s.trim()).filter(Boolean)
       : [];
+
+    // Build cert date range filter
+    let certDateFrom = null;
+    if (certDateRange) {
+      const now = new Date();
+      if (certDateRange === 'this_month') {
+        certDateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      } else if (certDateRange === 'last_2_months') {
+        const d = new Date(now);
+        d.setMonth(d.getMonth() - 2);
+        certDateFrom = d.toISOString();
+      } else if (certDateRange === 'this_year') {
+        certDateFrom = new Date(now.getFullYear(), 0, 1).toISOString();
+      }
+    }
 
     // Enrich each candidate with stats
     const enriched = await Promise.all((profiles || []).map(async (p) => {
@@ -76,17 +102,28 @@ export const searchCandidates = async (filters = {}) => {
         .select('id', { count: 'exact', head: true })
         .eq('student_id', p.id);
 
-      // Certificate count
-      const { count: certCount } = await supabase
+      // Certificates — fetch full records for date/course filtering
+      const { data: certs } = await supabase
         .from('certificates')
-        .select('id', { count: 'exact', head: true })
+        .select('id, issue_date, courses(id, title)')
+        .eq('student_id', p.id)
+        .eq('status', 'valid');
+
+      const certCount = (certs || []).length;
+
+      // Enrollments — fetch for course-based filtering
+      const { data: enrollments } = await supabase
+        .from('enrollments')
+        .select('id, progress, course_offerings(id, status, courses(id, title))')
         .eq('student_id', p.id);
 
       const candidate = {
         ...p,
         avg_grade: avgGrade,
         wp_submission_count: wpCount || 0,
-        certificate_count: certCount || 0,
+        certificate_count: certCount,
+        certificates: certs || [],
+        enrollments: enrollments || [],
       };
 
       return {
@@ -95,24 +132,87 @@ export const searchCandidates = async (filters = {}) => {
       };
     }));
 
-    // Filter by skills if provided
+    // ── Apply filters ──────────────────────────────────────────────────────
+
     let results = enriched;
+
+    // 1. Skills filter (existing)
     if (skillsArray.length > 0) {
-      results = enriched.filter(c => {
+      results = results.filter(c => {
         const cs = (c.skills || '').toLowerCase();
         return skillsArray.some(s => cs.includes(s.toLowerCase()));
       });
     }
 
-    // Filter by min score
+    // 2. Min score filter (existing)
     if (minScore) {
       results = results.filter(c => c.avg_grade >= parseInt(minScore));
+    }
+
+    // 3. Certification date range filter
+    if (certDateFrom) {
+      results = results.filter(c =>
+        (c.certificates || []).some(cert =>
+          cert.issue_date && new Date(cert.issue_date) >= new Date(certDateFrom)
+        )
+      );
+    }
+
+    // 4. Course title filter (partial match on enrolled or certified courses)
+    if (courseTitle) {
+      const needle = courseTitle.toLowerCase();
+      results = results.filter(c => {
+        const inCerts = (c.certificates || []).some(cert =>
+          (cert.courses?.title || '').toLowerCase().includes(needle)
+        );
+        const inEnrollments = (c.enrollments || []).some(e =>
+          (e.course_offerings?.courses?.title || '').toLowerCase().includes(needle)
+        );
+        return inCerts || inEnrollments;
+      });
+    }
+
+    // 5. Category / specialization keyword filter
+    // Matches against course titles, skills, and interests
+    if (category) {
+      const needle = category.toLowerCase();
+      results = results.filter(c => {
+        const inSkills = (c.skills || '').toLowerCase().includes(needle);
+        const inInterests = (c.interests || '').toLowerCase().includes(needle);
+        const inCerts = (c.certificates || []).some(cert =>
+          (cert.courses?.title || '').toLowerCase().includes(needle)
+        );
+        const inEnrollments = (c.enrollments || []).some(e =>
+          (e.course_offerings?.courses?.title || '').toLowerCase().includes(needle)
+        );
+        return inSkills || inInterests || inCerts || inEnrollments;
+      });
+    }
+
+    // 6. Minimum certificate count
+    if (minCertCount) {
+      results = results.filter(c => c.certificate_count >= parseInt(minCertCount));
+    }
+
+    // 7. Minimum work-practice submissions
+    if (minWpCount) {
+      results = results.filter(c => c.wp_submission_count >= parseInt(minWpCount));
+    }
+
+    // 8. Must have at least one completed course
+    if (completedCourse === '1' || completedCourse === true) {
+      results = results.filter(c =>
+        (c.enrollments || []).some(e =>
+          e.course_offerings?.status === 'closed' || (e.progress || 0) >= 100
+        )
+      );
     }
 
     // Sort by match score DESC
     results.sort((a, b) => b.match_score - a.match_score);
 
-    return results;
+    // Strip internal enrichment fields not needed by the frontend list view
+    return results.map(({ certificates, enrollments, ...rest }) => rest);
   } catch (err) {
     if (err instanceof BadRequestError) throw err;
     logger.error('Unexpected error searching candidates:', err);
