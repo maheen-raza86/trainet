@@ -58,11 +58,33 @@ export const createAssignment = async (assignmentData) => {
     if (fileName) insertData.file_name = fileName;
     if (fileSize) insertData.file_size = fileSize;
 
-    const { data, error } = await supabase
+    let insertResult = await supabase
       .from('assignments')
       .insert([insertData])
       .select()
       .single();
+
+    // If insert failed because start_time column doesn't exist yet
+    // (migration 021 not yet applied), retry without it and log a warning.
+    if (
+      insertResult.error &&
+      startTime &&
+      (insertResult.error.message || '').toLowerCase().includes('start_time')
+    ) {
+      logger.warn(
+        '[assignmentService] start_time column not found — retrying without it. ' +
+        'Run migration 021_assignment_start_time.sql on the production database.'
+      );
+      const fallbackData = { ...insertData };
+      delete fallbackData.start_time;
+      insertResult = await supabase
+        .from('assignments')
+        .insert([fallbackData])
+        .select()
+        .single();
+    }
+
+    const { data, error } = insertResult;
 
     if (error) {
       logger.error('Error creating assignment:', error);
@@ -196,12 +218,35 @@ export const updateAssignment = async (assignmentId, trainerId, updateData) => {
     if (startTime !== undefined) updateFields.start_time = startTime || null;
 
     // Update assignment
-    const { data: updatedAssignment, error: updateError } = await supabase
+    let updateResult = await supabase
       .from('assignments')
       .update(updateFields)
       .eq('id', assignmentId)
       .select()
       .single();
+
+    // If update failed because start_time column doesn't exist yet
+    // (migration 021 not yet applied), retry without it.
+    if (
+      updateResult.error &&
+      updateFields.start_time !== undefined &&
+      (updateResult.error.message || '').toLowerCase().includes('start_time')
+    ) {
+      logger.warn(
+        '[assignmentService] start_time column not found on update — retrying without it. ' +
+        'Run migration 021_assignment_start_time.sql on the production database.'
+      );
+      const fallbackFields = { ...updateFields };
+      delete fallbackFields.start_time;
+      updateResult = await supabase
+        .from('assignments')
+        .update(fallbackFields)
+        .eq('id', assignmentId)
+        .select()
+        .single();
+    }
+
+    const { data: updatedAssignment, error: updateError } = updateResult;
 
     if (updateError) {
       logger.error('Error updating assignment:', updateError.message || updateError);
