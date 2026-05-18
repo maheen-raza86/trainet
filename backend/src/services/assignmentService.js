@@ -115,7 +115,7 @@ export const getAssignmentsByCourse = async (courseId, options = {}) => {
       .order('due_date', { ascending: true });
 
     if (options.studentView) {
-      query = query.or(`start_time.is.null,start_time.lte.${now}`);
+      query = query.or(`start_time.is.null,start_time.lte."${now}"`);
     }
 
     const { data: offeringAssignments, error: offeringError } = await query;
@@ -132,7 +132,7 @@ export const getAssignmentsByCourse = async (courseId, options = {}) => {
       .order('due_date', { ascending: true });
 
     if (options.studentView) {
-      fallbackQuery = fallbackQuery.or(`start_time.is.null,start_time.lte.${now}`);
+      fallbackQuery = fallbackQuery.or(`start_time.is.null,start_time.lte."${now}"`);
     }
 
     const { data, error } = await fallbackQuery;
@@ -242,10 +242,11 @@ export const getAssignmentsByOffering = async (offeringId, options = {}) => {
       .eq('course_offering_id', offeringId)
       .order('due_date', { ascending: true });
 
-    // Student view: only return assignments whose start_time has passed (or is null)
+    // Student view: only return assignments whose start_time has passed (or is null).
+    // Use quoted ISO value in the PostgREST or() filter to avoid colon-parsing issues.
     if (options.studentView) {
       const now = new Date().toISOString();
-      query = query.or(`start_time.is.null,start_time.lte.${now}`);
+      query = query.or(`start_time.is.null,start_time.lte."${now}"`);
     }
 
     const { data, error } = await query;
