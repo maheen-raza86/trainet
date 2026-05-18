@@ -105,44 +105,41 @@ export const createAssignment = async (assignmentData) => {
  */
 export const getAssignmentsByCourse = async (courseId, options = {}) => {
   try {
-    const now = new Date().toISOString();
-
     // Try to fetch by course_offering_id first (new structure)
-    let query = supabase
+    const { data: offeringAssignments, error: offeringError } = await supabase
       .from('assignments')
       .select('*')
       .eq('course_offering_id', courseId)
       .order('due_date', { ascending: true });
 
-    if (options.studentView) {
-      query = query.or(`start_time.is.null,start_time.lte."${now}"`);
-    }
-
-    const { data: offeringAssignments, error: offeringError } = await query;
-
     if (!offeringError && offeringAssignments && offeringAssignments.length > 0) {
+      if (options.studentView) {
+        const now = new Date();
+        return offeringAssignments.filter(a => !a.start_time || new Date(a.start_time) <= now);
+      }
       return offeringAssignments;
     }
 
     // Fallback to course_id for backward compatibility
-    let fallbackQuery = supabase
+    const { data, error } = await supabase
       .from('assignments')
       .select('*')
       .eq('course_id', courseId)
       .order('due_date', { ascending: true });
-
-    if (options.studentView) {
-      fallbackQuery = fallbackQuery.or(`start_time.is.null,start_time.lte."${now}"`);
-    }
-
-    const { data, error } = await fallbackQuery;
 
     if (error) {
       logger.error('Error fetching assignments:', error);
       throw new BadRequestError('Failed to fetch assignments');
     }
 
-    return data || [];
+    const all = data || [];
+
+    if (options.studentView) {
+      const now = new Date();
+      return all.filter(a => !a.start_time || new Date(a.start_time) <= now);
+    }
+
+    return all;
   } catch (error) {
     if (error instanceof BadRequestError) {
       throw error;
@@ -236,27 +233,27 @@ export const updateAssignment = async (assignmentId, trainerId, updateData) => {
  */
 export const getAssignmentsByOffering = async (offeringId, options = {}) => {
   try {
-    let query = supabase
+    const { data, error } = await supabase
       .from('assignments')
       .select('*')
       .eq('course_offering_id', offeringId)
       .order('due_date', { ascending: true });
-
-    // Student view: only return assignments whose start_time has passed (or is null).
-    // Use quoted ISO value in the PostgREST or() filter to avoid colon-parsing issues.
-    if (options.studentView) {
-      const now = new Date().toISOString();
-      query = query.or(`start_time.is.null,start_time.lte."${now}"`);
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       logger.error('Error fetching assignments by offering:', error);
       throw new BadRequestError('Failed to fetch assignments');
     }
 
-    return data || [];
+    const all = data || [];
+
+    // Student view: filter out assignments whose start_time is in the future.
+    // Done in JS to avoid PostgREST timestamp filter parsing issues.
+    if (options.studentView) {
+      const now = new Date();
+      return all.filter(a => !a.start_time || new Date(a.start_time) <= now);
+    }
+
+    return all;
   } catch (error) {
     if (error instanceof BadRequestError) {
       throw error;
