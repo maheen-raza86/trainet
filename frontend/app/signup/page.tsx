@@ -134,6 +134,12 @@ export default function SignupPage() {
                   {...register('firstName', {
                     required: 'First name is required',
                     minLength: { value: 2, message: 'First name must be at least 2 characters' },
+                    pattern: {
+                      value: /^[A-Za-z\s]+$/,
+                      message: 'First name must contain letters only',
+                    },
+                    validate: (value) =>
+                      value.trim().length >= 2 || 'First name must be at least 2 characters',
                   })}
                   className={`w-full px-4 py-3 bg-gray-50 border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition ${
                     errors.firstName ? 'border-red-400' : 'border-gray-200'
@@ -152,6 +158,12 @@ export default function SignupPage() {
                   {...register('lastName', {
                     required: 'Last name is required',
                     minLength: { value: 2, message: 'Last name must be at least 2 characters' },
+                    pattern: {
+                      value: /^[A-Za-z\s]+$/,
+                      message: 'Last name must contain letters only',
+                    },
+                    validate: (value) =>
+                      value.trim().length >= 2 || 'Last name must be at least 2 characters',
                   })}
                   className={`w-full px-4 py-3 bg-gray-50 border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition ${
                     errors.lastName ? 'border-red-400' : 'border-gray-200'

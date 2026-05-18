@@ -64,6 +64,42 @@ export const signup = async (req, res, next) => {
       });
     }
 
+    // Validate name characters — letters and spaces only, no digits or symbols
+    const nameRegex = /^[A-Za-z\s]+$/;
+
+    if (!nameRegex.test(firstName.trim())) {
+      return res.status(400).json({
+        success: false,
+        message: 'First name must contain letters only (no numbers or special characters)',
+        error: 'Validation Error',
+      });
+    }
+
+    if (!nameRegex.test(lastName.trim())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Last name must contain letters only (no numbers or special characters)',
+        error: 'Validation Error',
+      });
+    }
+
+    // Validate trimmed length after stripping surrounding spaces
+    if (firstName.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'First name must be at least 2 characters',
+        error: 'Validation Error',
+      });
+    }
+
+    if (lastName.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Last name must be at least 2 characters',
+        error: 'Validation Error',
+      });
+    }
+
     // Validate role if provided
     const validRoles = ['student', 'trainer', 'alumni', 'recruiter', 'admin'];
     if (role && !validRoles.includes(role)) {
