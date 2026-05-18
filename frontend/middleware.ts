@@ -100,7 +100,7 @@ export function middleware(request: NextRequest) {
     });
   }
 
-  // If not a role-prefixed route, allow (e.g. /mentorship, /talent-pool public pages)
+  // If not a role-prefixed route, allow
   if (!matchedRole) {
     return NextResponse.next();
   }
@@ -111,12 +111,14 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
   const userCookie = request.cookies.get('user')?.value;
 
-  // No token → redirect to login, preserving the intended destination
+  // No cookie present — the user may have a valid localStorage session that
+  // hasn't been synced to cookies yet (e.g. logged in before cookie-sync was
+  // deployed, or cookies were cleared by the browser).
+  // Do NOT redirect to /login here — the client-side DashboardLayout guard
+  // handles unauthenticated users. Redirecting here causes an infinite loop
+  // because the cookie is only set client-side after React hydration.
   if (!token || !userCookie) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = '/login';
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.next();
   }
 
   // Parse user role from cookie
@@ -125,13 +127,12 @@ export function middleware(request: NextRequest) {
     const parsed = JSON.parse(decodeURIComponent(userCookie));
     userRole = parsed?.role ?? null;
   } catch {
-    // Corrupted cookie — redirect to login
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = '/login';
-    return NextResponse.redirect(loginUrl);
+    // Corrupted cookie — allow through, client-side guard will handle it
+    return NextResponse.next();
   }
 
   // Role mismatch → redirect to the user's own dashboard
+  // Only enforce this when we have a confirmed role from the cookie.
   if (userRole && userRole !== requiredRole) {
     const dashboardUrl = request.nextUrl.clone();
     dashboardUrl.pathname = `/${userRole}/dashboard`;
